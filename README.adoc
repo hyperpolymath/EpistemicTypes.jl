@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+// SPDX-FileCopyrightText: 2024-2026 Jonathan D.A. Jewell (hyperpolymath)
+= EpistemicTypes.jl
+:toc:
+:toc-placement: preamble
+
+// ── Licensing ───────────────────────────────────────────────────────────────
+image:https://img.shields.io/badge/Code-MPL--2.0-blue.svg?logo=mozilla[Code licence: MPL-2.0,link="https://opensource.org/licenses/MPL-2.0"]
+image:https://img.shields.io/badge/Docs-CC--BY--SA--4.0-blue.svg?logo=creativecommons[Docs licence: CC-BY-SA-4.0,link="https://creativecommons.org/licenses/by-sa/4.0/"]
+image:https://img.shields.io/badge/Provenance-Quantum--Safe-blueviolet[Quantum-Safe Provenance,link="docs/legal/EXHIBIT-B-QUANTUM-SAFE.txt"]
+
+// ── Standard & quality gates ────────────────────────────────────────────────
+image:https://img.shields.io/badge/RSR-Rhodium_Standard-9C27B0[Rhodium Standard Repository,link="https://github.com/hyperpolymath/rhodium-standard-repositories"]
+image:https://api.scorecard.dev/projects/github.com/hyperpolymath/EpistemicTypes.jl/badge[OpenSSF Scorecard,link="https://scorecard.dev/viewer/?uri=github.com/hyperpolymath/EpistemicTypes.jl"]
+image:https://sonarcloud.io/api/project_badges/measure?project=hyperpolymath_EpistemicTypes.jl&metric=alert_status[SonarQube Quality Gate,link="https://sonarcloud.io/summary/new_code?id=hyperpolymath_EpistemicTypes.jl"]
+image:https://archive.softwareheritage.org/badge/origin/https://github.com/hyperpolymath/EpistemicTypes.jl/[Archived in Software Heritage,link="https://archive.softwareheritage.org/browse/origin/?origin_url=https://github.com/hyperpolymath/EpistemicTypes.jl"]
+
+// ── Provenance & ecosystem ──────────────────────────────────────────────────
+image:https://img.shields.io/badge/Idris-Inside-5E5086?logo=idris&logoColor=white[Idris Inside,link="https://github.com/hyperpolymath/proven"]
+image:https://img.shields.io/badge/Zig-Zero--overhead-F7A41D?logo=zig&logoColor=black[Zig Zero-overhead FFI,link="https://github.com/hyperpolymath/typed-wasm"]
+image:https://api.thegreenwebfoundation.org/greencheckimage/github.com[Green Web,link="https://www.thegreenwebfoundation.org/green-web-check/?url=github.com"]
+
+Per-row claims with receipts: standpoint/warrant/projection fibres, epi_status, residual evidence and a safe cross-run merge check for taxonomic pipelines.
+
+
+== What this is
+
+`EpistemicTypes.jl` answers one question per row of a taxonomic table:
+
+[quote]
+____
+On whose authority, on what evidence, and at what rank am I allowed to say this
+is _Giardia_?
+____
+
+It binds every visible taxon to the witness that produced it — a *standpoint*
+(which tool, which version, which database release, which parameters), a
+*warrant* (the classifier's own numbers plus the sample gates), and a
+*projection* (which feature, which sample, which rank) — and signs the three
+together into a portable *receipt* that travels in a CSV column.
+
+From that receipt it derives, in O(1) per row:
+
+`epi_status`:: one of `:Factive` (a positive claim is warranted), `:Belief`
+  (real evidence, below threshold), `:Collapsed` (gates failed — there is
+  residue but no claim), `:SansFibre` (the receipt does not verify, so nothing
+  further is asked).
+residual evidence:: what is still open at the next finer rank, with *novel*
+  reachable only after the contamination gates pass — never as a default.
+`can_merge`:: whether two runs may be analysed together, and if not, whether
+  the honest move is to collapse to a shared rank or to refuse outright.
+
+It is deliberately *not* a statistics or machine-learning module. Its own
+header says it plainly: heavy phylogenetics (IQ-TREE, EPA-ng), alignment
+(MAFFT) and denoising (DADA2) live elsewhere; this annotates and verifies
+their output and enforces safe claims. The TPU/NPU/VPU backends exist in order
+to *refuse*, documenting that per-row hashing is not a dense-matmul workload,
+so nobody later assumes hardware magic belongs here.
+
+`Protoctist.jl` imports this package as its evidence vocabulary.
+
+=== Provenance — this code was recovered, not rewritten
+
+`src/core/Epistemic.jl` was written inside an Arena.ai conversation on
+2026-09-16 and never pushed anywhere. It was recovered on 2026-09-23.
+
+It is restored *verbatim*: byte-identical to the extracted source apart from
+two fixes, each marked `RECOVERY FIX` at its site, and neither of which the
+code could run without — a missing `using Base64`, and a `b64url` that passed
+its replacement pairs as a tuple instead of splatting them, throwing
+`MethodError` on every receipt. Together they say something useful about what
+was recovered: **the code had never been executed.** The logic was reasoned
+out, not run. No threshold, name, signature scheme or docstring was touched.
+
+`docs/recovered/` holds the unmodified extracts and names the fragilities that
+were left in place on purpose, each pinned by a test rather than quietly fixed.
+
+== Quick start
+
+[source,julia]
+----
+using EpistemicTypes
+
+k = Standpoint(tool = "dada2", tool_ver = "1.28.0",
+               db_key = "pr2", db_release = "5.0.0",
+               params_hash = "sha256:...", normalisation = "none")
+
+w = Warrant(boot_min = 0.90,        # the classifier's own confidence
+            depth = 500,            # per-feature count in this sample
+            neg_leak = 0.0,         # leakage against the negative control
+            chimera = false)
+
+y = ProjectionY(taxon = "Giardia", rank = "Genus",
+                feature_id = "ASV0001", sample_id = "S01")
+
+r = make_receipt(k, w, y)
+verify_receipt(r)                   # true — the signature binds k, w and y
+
+epi_status(r, ThresholdPolicy())    # :Factive
+highest_warranted_rank(k, w, ThresholdPolicy())   # "Genus", not "Species"
+----
+
+The receipt is designed to survive a spreadsheet:
+
+[source,julia]
+----
+s = encode_avec_fibre(r)            # "echo:v1?k=...&w=...&y=...&sig=..."
+back = parse_avec_fibre(s)
+verify_receipt(back)                # still true — the wire form is lossless
+----
+
+Residual evidence, where "novel" has to be earned:
+
+[source,julia]
+----
+# Warranted at Genus, nothing named clears Species, contamination gates pass.
+residual_info(r; named_candidates_at_species = 0, gates_ok_for_novel = true)
+# ResidualInfo(warranted_rank = "Genus", status = :Factive,
+#              residual_has_novel = true, contam_flag = false, ...)
+
+# Same evidence, gates NOT passed: flagged as contamination, never novel.
+residual_info(r; named_candidates_at_species = 0, gates_ok_for_novel = false)
+----
+
+And the cross-run safety check:
+
+[source,julia]
+----
+can_merge(manifest_a, manifest_b)
+# (status = "OK",)
+# (status = "OK_COLLAPSE", collapse_to = "Domain", reason = "db_release_mismatch")
+# (status = "REFUSE", reason = "normalisation_mismatch", details = "rarefy vs rss")
+----
+
+=== The order the checks run in matters
+
+`epi_status` asks *verify → gates → rank*, and stops at the first failure. A
+perfect bootstrap on a three-read sample is `:Collapsed`, not `:Factive`: the
+sample gates outrank the classifier, by design. Likewise a zero cell is not
+automatically an absence — `disambiguate_zero` returns `:true_absence` only
+where there was enough depth to have seen something.
+
+== Testing
+
+[source,bash]
+----
+julia --project=. -e 'using Pkg; Pkg.test()'
+----
+
+Aqua's package-shape gate runs first, then the behaviour cases in
+`test/cases/`, which exercise the receipt signature (including tampering with
+each leg), the wire-form round trip, every threshold boundary, all four
+`epi_status` outcomes, the residual/contamination logic, and each `can_merge`
+verdict.
+
+== AI-Assisted Installation
+
+If you are an AI agent installing this project, read
+link:docs/AI_INSTALLATION_GUIDE.adoc[the AI installation guide] first — it gives
+the orientation order, the full prompt sequence, and the privacy notice.
+
+The one trap worth stating up front: **do not set `RSR_NON_INTERACTIVE=1`**. It
+stubs the shell builtin `read`, which also disables the loops that perform token
+substitution — the run never terminates and substitutes nothing. Pipe answers to
+stdin instead.
+
+== What you get
+
+* *Machine-readable metadata* (`.machine_readable/descriptiles/`) — `STATE`, `META`,
+  `ECOSYSTEM`, `PLAYBOOK`, `AGENTIC`, `NEUROSYM`, `CLADE`, and `anchors/ANCHOR`,
+  in deed, so tools and agents can read the project's state and boundaries.
+* *AI gatekeeper protocol* — `EpistemicTypes.jl_chora.deed` (the repo deed) is the
+  universal entry point that tells an AI agent how to work in this repo before it
+  touches anything; it carries the AI allocation policy and the ply directory tree.
+* *Typed ABI/FFI seam* — `src/interface/Abi/` (Idris2 type + layout proofs) over
+  `src/interface/ffi/` (Zig implementation), with generated C headers.
+* *CI/CD* — GitHub Actions for quality, security (CodeQL, Scorecard, secret
+  scanning), multi-forge mirroring, and RSR anti-pattern enforcement.
+* *Supply-chain & reproducibility* — container layering (stapeln), Guix shells,
+  SBOM, and signing hooks.
+* *Governance* — `GOVERNANCE.adoc`, `MAINTAINERS.adoc`, `.github/` community health
+  files, and a release `AUDIT.adoc` gate.
+
+== Repository map
+
+The authoritative map is generated, so it cannot drift from the tree:
+link:docs/architecture/REPOSITORY-MAP.adoc[docs/architecture/REPOSITORY-MAP.adoc]
+(regenerate with `just repo-map`; CI fails if it is stale).
+
+The short version:
+
+[cols="1,3"]
+|===
+| Path | What lives there
+
+| `README.adoc`, `CLAUDE.md` | Start here - humans and AI agents respectively.
+| `src/`, `tests/`           | The code and its tests.
+| `docs/`                    | Human documentation, including the full map above.
+| `.machine_readable/`        | Manifests, contractiles and policies that tools read.
+| `build/`, `Justfile`       | Every task runs through `just`; phases live in `build/just/`.
+| `ci/`, `.github/`          | CI configuration; GitHub reads `.github/` and no other path.
+|===
+
+== Where to go next
+
+* link:docs/architecture/REPOSITORY-MAP.adoc[The repository map] — generated; what every directory is for.
+* link:docs/EXPLAINME.adoc[EXPLAINME] — the engineering deep-dive: how the pieces actually work.
+* link:docs/AFFIRMATION.adoc[AFFIRMATION] — the dated, signed honesty snapshot of the repo's true state.
+* link:docs/AUDIT.adoc[AUDIT] — the release audit gate.
+* link:docs/AI_INSTALLATION_GUIDE.adoc[AI installation guide] — for agents instantiating this template.
+* link:.machine_readable/ai/PLACEHOLDERS.adoc[PLACEHOLDERS] — the full placeholder reference.
+
+== Licence
+
+Code, configuration and scripts are link:LICENSE[Mozilla Public License 2.0]
+(`MPL-2.0`); prose documentation is `CC-BY-SA-4.0`. Both texts live in
+`LICENSES/`, and per-file `SPDX-License-Identifier` headers are authoritative.
+The GitHub-detected licence is MPL-2.0 (the root `LICENSE`). Long-term
+attribution uses Quantum-Safe Provenance — see
+link:docs/legal/EXHIBIT-B-QUANTUM-SAFE.txt[the Quantum-Safe Provenance exhibit].
