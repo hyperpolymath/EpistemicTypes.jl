@@ -21,7 +21,7 @@ conversation _titles only_, never message bodies, which is why searching for
 |===
 |Path |What it is
 |`code-blocks/*.jl` |All 23 Julia blocks from the thread, verbatim, in thread order. 1,607 lines total.
-|`DESIGN-SPEC-recovered.md` |The 14 prose passages specifying the design, extracted in order.
+|`DESIGN-SPEC-recovered.md` |The 14 prose passages specifying the design, extracted in order. Three runs of Arena page-state JSON that the extractor caught after passage 12 and in the bodies of passages 13 and 14 (message ids and session telemetry, including a hashed client IP) are replaced with a marked `[Redacted: …]` line. They are not thread text. Before redaction the file had SHA-256 `44d86e730be094e744ddb3904ac429213492c50b39c79a02c74590339a86529c`; lines 1–849 are unchanged.
 |===
 
 == How `src/` relates to it
