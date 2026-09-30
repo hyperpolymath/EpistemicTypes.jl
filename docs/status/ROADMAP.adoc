@@ -1,23 +1,40 @@
 // SPDX-License-Identifier: CC-BY-SA-4.0
 // Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
-= YOUR Template Repo Roadmap
+= Roadmap
 
-== Current Status
+== 0.1.0 (current)
 
-Initial development phase.
+* Receipts split into standpoint, warrant and projection, with a
+  tamper-evident digest over a canonical JSON form.
+* A one-column wire form for carrying receipts in CSV and ECSV tables.
+* `epi_status`, decided in a fixed order: digest, then gates, then rank.
+* Per-rank threshold policies for DADA2 and vsearch, held as data.
+* Residuals in which "novel" is reachable only after the contamination gate.
+* `can_merge`, which compares two runs over the judgement surface only and
+  refuses when they share no rank.
+* Tested by Aqua and the behaviour suite. The limits below are pinned by tests.
 
-== Milestones
+== Candidates for the next release
 
-=== v0.1.0 - Foundation
-* [ ] Core functionality
-* [ ] Basic documentation
-* [ ] CI/CD pipeline
+These are open. Their order is not fixed. Each one is described in
+link:../EXPLAINME.adoc#_current_limits[Current limits].
 
-=== v1.0.0 - Stable Release
-* [ ] Full feature set
-* [ ] Comprehensive tests
-* [ ] Production ready
+Claimed versus warranted rank::
+Have `epi_status` compare the rank a receipt claims with the rank its warrant
+clears, and demote when they differ.
 
-== Future Directions
+Per-rank bootstrap::
+Accept a bootstrap per rank instead of a single `boot_min`, so DADA2 output can
+be read directly.
 
-_To be determined based on community feedback._
+Percent-encoded wire form::
+Encode `&` and `=` in the wire form, so free-text fields round-trip. This
+changes the wire format and needs a version bump.
+
+More classifier policies::
+Policy tables for QIIME 2's naive Bayes classifier and SINTAX, whose rows are
+currently `:Belief` at best.
+
+`lowest_common_rank` docstring::
+Correct the docstring to describe the tested behaviour: the coarsest shared
+rank on coarse-first ladders.
