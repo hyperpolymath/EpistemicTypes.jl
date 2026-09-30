@@ -326,7 +326,12 @@ function can_merge(manA::Dict, manB::Dict; allow_relative_abundance_if_norm_equa
   # Same DB key, different release: collapse
   if manA["db"]["release"] != manB["db"]["release"]
     common = lowest_common_rank(manA["db"]["ranks"], manB["db"]["ranks"])
-    return (status="OK_COLLAPSE", collapse_to=common, reason="db_release_mismatch")
+    # POST-RECOVERY FIX: the recovered code returned OK_COLLAPSE with
+    # collapse_to === nothing when the ladders share no rank — a "safe to merge"
+    # verdict naming no rank. It now refuses, exactly as the db-key branch above
+    # does. The original line is in docs/recovered/code-blocks/16-Epistemic.jl.
+    return common === nothing ? (status="REFUSE", reason="no_common_rank", details="") :
+                                (status="OK_COLLAPSE", collapse_to=common, reason="db_release_mismatch")
   end
   # Otherwise OK
   return (status="OK",)

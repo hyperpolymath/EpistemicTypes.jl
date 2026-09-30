@@ -48,3 +48,16 @@ end
     # Each leg is required.
     @test_throws ErrorException parse_avec_fibre("echo:v1?k={}&w={}&y={}")
 end
+
+@testset "receipts — '&' in a field breaks the wire form, loudly (known fragility #1)" begin
+    # encode_avec_fibre joins raw JSON with '&' and '=' and parse_avec_fibre
+    # splits on them, so a field containing '&' cannot round-trip. It fails
+    # with an error rather than yielding a wrong receipt — pinned so it stays
+    # loud. The @test_broken turns into an "unexpected pass" once the wire
+    # form is escaped, which is the prompt to update this test set.
+    y = ProjectionY(taxon = "Giardia & co", rank = "Genus",
+                    feature_id = "ASV0001", sample_id = "S01")
+    s = encode_avec_fibre(make_receipt(SP_DADA2, good_warrant(), y))
+    @test_throws ArgumentError parse_avec_fibre(s)
+    @test_broken (try verify_receipt(parse_avec_fibre(s)) catch; false end)
+end

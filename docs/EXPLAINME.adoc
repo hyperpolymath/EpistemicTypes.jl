@@ -1,118 +1,453 @@
 // SPDX-License-Identifier: CC-BY-SA-4.0
 // Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
-= RSR Template Repo - Explainme
-image:https://img.shields.io/badge/License-MPL_2.0-blue.svg[License: MPL-2.0,link="https://opensource.org/licenses/MPL-2.0"]
-
+= EpistemicTypes.jl — design decisions
 :toc:
+:toclevels: 2
 :icons: font
 
-This file explains how the key template claims map to real files.
+This document is for people deciding whether to put per-row evidence records
+into an amplicon pipeline: bioinformaticians who maintain DADA2, vsearch or
+QIIME 2 workflows, and the protistologists and microbial ecologists who have to
+defend a taxon call in a methods section. Each section states a decision, why
+it was made, what goes wrong without it, and what it costs. The current limits
+come after the decisions, at the same level of detail.
 
-== Central Session Protocol Authority
+The implementation is one module, `src/core/Epistemic.jl`, of about 400 lines.
+Every decision below is short enough to check against the source directly, and
+each is exercised by a named test set.
 
-Claim:
-Session protocols are centrally maintained and not duplicated in this template.
+== The problem being solved
 
-How this is implemented:
+A taxonomy table records conclusions and discards the evidence for them. By
+the time a row reaches a figure or a pooled analysis, four things have usually
+been lost:
 
-* The local dispatcher (`session/dispatch.sh`) maps canonical commands to central
-  protocol paths in `standards/3-practice/session-management-standards`.
-* Local files (`session/custom-checks.k9`, `session/local-hooks.sh`,
-  `coordination.k9`) are integration-only.
+. *Where the call came from.* Classifier, version, reference release and
+  parameters live in a log file, if anywhere, not next to the row.
+. *How strong it was.* A genus called with bootstrap 0.51 and one called with
+  0.99 look identical in the table. So do a genus supported by 12 reads and
+  one supported by 12,000.
+. *Whether the sample could support it.* A read that also appears in the
+  negative control, or a chimera, can still carry a confident classification.
+. *Whether two tables can be pooled.* Runs against different reference
+  releases, or under different normalisation, produce tables of the same shape.
 
-Caveat:
+EpistemicTypes keeps these four things with the row and decides each question
+the same way every time.
 
-* If `SESSION_STANDARDS_DIR` is unset and no adjacent standards checkout exists,
-  the dispatcher records the command but cannot resolve central checklist paths.
+== Decisions
 
-== Canonical Command Surface
+=== D1. Every claim is split into standpoint, warrant and projection
 
-Claim:
-Template bindings align to one canonical command model.
+A `Receipt` has three parts:
 
-How this is implemented:
+* the *standpoint* `k`: tool, tool version, reference key, release,
+  parameter hash and normalisation — where the claim is made from;
+* the *warrant* `w`: the classifier's numbers (`boot_min`, or `id` and `cov`)
+  and the sample gates (`depth`, `neg_leak`, `chimera`) — what entitles it;
+* the *projection* `y`: taxon, rank, feature and sample — what is claimed.
 
-* `Justfile` provides thin aliases (`intake-repo`, `checkpoint-change`,
-  `verify-maintenance`, `verify-substantial`, `verify-release`, `close-planned`,
-  `close-urgent`, `recover-repo`, `handover-*`).
-* Every alias calls `session/dispatch.sh` with canonical verb-object pairs.
+*Why.* These parts answer different questions and change for different
+reasons. A new reference release changes the standpoint and nothing else. A
+deeper resequencing run changes the warrant. Keeping them apart lets
+`can_merge` compare standpoints without looking at taxa, and lets the rank
+logic read the warrant without knowing which table the row came from.
 
-Caveat:
+*Without it.* A single "confidence" column mixes classifier support with
+sample quality, so a strong bootstrap on three reads cannot be told apart from
+a strong bootstrap on three thousand.
 
-* Recipes are wrappers only. They do not replace protocol content from
-  the central standards repo.
+*What the receipt holds, and what it does not.* The receipt stores raw inputs
+only. Status, warranted rank and residuals are recomputed from it under a
+policy (D6). A receipt written today can be re-judged under stricter
+thresholds next year without being reissued.
 
-== Runtime State Is Local
+=== D2. The digest makes a receipt tamper-evident, not authenticated
 
-Claim:
-Session state is per-repository runtime output, not standards text.
+`make_receipt` computes `sig = "sha256:" * base64url(SHA-256(canon(k, w, y)))`,
+where `canon` is the JSON3 serialisation of the named tuple `(k, w, y)`.
+`verify_receipt` recomputes the digest and compares.
 
-How this is implemented:
+*Why.* The failure this prevents is ordinary: a spreadsheet edit, a join
+that shifts a column, or a script that rounds a bootstrap. Any change to any
+field of any leg changes the digest. `test/cases/receipts.jl` edits each leg in
+turn and checks that verification fails every time.
 
-* `session/dispatch.sh` writes command and continuity-core capture stubs to
-  `.session/LAST-CANONICAL-COMMAND.md` in the target repository path.
+*What it does not prevent.* The digest is unkeyed. Anyone who can edit a
+receipt can recompute its digest, so it establishes integrity, not origin. For
+authenticity, sign the canonical payload with a key (an Ed25519 signature
+over the same bytes, or an HMAC inside a closed pipeline) in a layer above this
+one. The `v = "echo:v1"` tag leaves room for that to be added without breaking
+existing receipts.
 
-Caveat:
+*Why base64url without padding.* The digest is 43 characters from
+`[A-Za-z0-9_-]`, which needs no escaping in CSV, TSV, a URL or a filename.
 
-* Runtime files are intentionally lightweight and require human/agent completion.
+=== D3. Canonical form is JSON3 in struct field order
 
-== Template Token Policy
+`canon` relies on two properties of JSON3: struct fields serialise in
+declaration order, and a `Float64` serialises in the shortest form that
+round-trips. `nothing` serialises as `null`, and non-finite numbers are
+refused (`allow_inf = false`), because `NaN` has no JSON form another
+verifier could reproduce.
 
-Claim:
-Placeholders are explicit template content until initialization.
+*Why not RFC 8785 (JCS).* JCS sorts keys and fixes number formatting, so any
+language can reproduce the bytes. It would add a dependency and a second
+serialiser to a package whose receipts are, so far, produced and checked in
+Julia. The cost is explicit. A verifier in another language must emit the
+same bytes JSON3 does: the same key order, the same float spelling. Adopting
+JCS is the right step once a non-Julia verifier exists, and it would be a
+`v` bump (D2).
 
-How this is implemented:
+*For callers.* If a value is rounded anywhere in the pipeline, round it
+before building the `Warrant`, never after. The digest covers the value
+exactly as constructed.
 
-* `README.adoc` and bootstrap recipes keep `{{TOKEN}}` placeholders visible.
-* `just init` performs token replacement.
+=== D4. The wire form is one column, quoted
 
-Caveat:
+`encode_avec_fibre` produces
 
-* Uninitialized placeholders must not be treated as project-specific truth.
+----
+echo:v1?k=<json>&w=<json>&y=<json>&sig=sha256:<43 chars>
+----
 
-== Dependency Updates (Dependabot)
+and `parse_avec_fibre` reverses it. A typical receipt is about 350 bytes.
 
-Claim:
-Dependency bumps land fast and safely, without manual chasing.
+*Why a single column.* A receipt that lives in its own column survives any
+tool that preserves columns: R data frames, pandas, `csvkit`, database
+imports, QIIME 2 metadata. Spreading it across six columns would invite the
+column shifts D2 exists to detect.
 
-How this is implemented:
+*Quoting.* The value contains commas and double quotes, so it must be written
+as a quoted CSV field with inner quotes doubled. `write.csv`, `readr`, pandas,
+CSV.jl and Protoctist's ECSV writer all do this by default. Hand-rolled
+`paste(..., sep = ",")` output does not.
 
-* `dependabot.yml` watches the Dependabot-supported ecosystems the estate
-  actually uses: `github-actions`, `cargo`, `mix` (Elixir), `docker`.
-* `dependabot-automerge.yml` auto-merges *every* bump (patch/minor/major,
-  security or routine) **once the required checks are green** — a broken bump
-  fails CI and stays open (you get an email); it never lands on a red `main`.
+*Parsing does not verify.* `parse_avec_fibre` checks the version prefix and
+the presence of all four parts, then returns a `Receipt`. Verification is a
+separate, explicit call (or `epi_status`, D5), so a loader can count
+unverifiable rows rather than dropping them at parse time.
 
-Caveat:
+=== D5. Status is decided in a fixed order: digest, gates, rank
 
-* Dependabot has **no  or Bun ecosystem**, and `pnpm` only rides under the
-  `npm` ecosystem (itself banned). For this -first estate Dependabot cannot
-  watch the runtime dependencies; the `npm`/`pip` entries are retained only for
-  transitional/legacy manifests and are otherwise inert.  dependency
-  currency is managed via `.json`/`.lock`, not Dependabot.
-* Do **not** add Dependabot as a ruleset *bypass* actor: that lets bumps skip
-  the required checks (secret-scanning, SAST), removing the safety gate and the
-  "it broke" signal. Auto-merge-on-green gives fast merges without it.
+----
+epi_status(r, pol) =
+    !verify_receipt(r)             ? :SansFibre :
+    !passes_gates(r.w, pol)        ? :Collapsed :
+    highest_warranted_rank(...) === nothing ? :Belief : :Factive
+----
 
-== Julia Registry Packages — Standalone Repo Requirement
+*Why this order.* Each step only means something if the previous one held.
+Rank thresholds on a receipt whose contents are unverified would be judging
+numbers of unknown origin. Rank thresholds on a sample that failed its gates
+would promote a contaminant with a good bootstrap. So a failed digest ends the
+evaluation, and a failed gate ends it before the classifier is consulted.
 
-Claim:
-If this template is used to create a Julia package, it must remain a standalone repository registered with the Julia package registry.
+*Consequence.* Sample gates outrank the classifier. A bootstrap of 0.99 on
+three reads is `:Collapsed`. `test/cases/status.jl` pins all four outcomes,
+including that case.
 
-How this is implemented:
+*The factive/belief split.* `:Factive` and `:Belief` follow the modalities of
+the Agda development
+https://github.com/hyperpolymath/epistemic-types[epistemic-types]. There, a
+factive modality comes with a reflection principle (what is known holds), and
+a belief modality deliberately lacks one. In this package that becomes
+operational: only a `:Factive` row may be used to assert presence, and a
+`:Belief` row is reported but not promoted.
 
-* Julia's package registry (General.jl or other) expects each package to be a standalone GitHub repository with `Project.toml` at the repository root.
-* Installation via `Pkg.add()`, dependency resolution, and automated CI/CD all depend on this canonical structure.
+=== D6. Thresholds are data, gated per rank
 
-Caveat:
+`ThresholdPolicy` holds the numbers. Its defaults are:
 
-* Do NOT move this repository into a monorepo or subdirectory, as this breaks registry registration and package discoverability.
-* Julia packages published to a registry must each remain a standalone top-level repository (registry registration and package discovery require it).
-* Non-registry Julia packages can be organized differently if they are not published to any registry.
+[cols="1,1,1,1",options="header"]
+|===
+| Rank | DADA2 bootstrap | vsearch identity | vsearch coverage
 
+| Species  | 0.98 | 0.99 | 0.95
+| Genus    | 0.88 | 0.95 | 0.90
+| Class    | 0.75 | —    | —
+| Division | 0.70 | 0.85 | 0.80
+|===
 
-== License
+with `depth_min = 100` reads per feature and `neg_leak_max = 0.005`.
 
-This project is licensed under the Mozilla Public License, v. 2.0. See the `LICENSE` file for details.
+`highest_warranted_rank` walks from finest to coarsest and returns the first
+rank whose threshold is met, or `nothing`. A rank absent from the policy is
+never warranted: DADA2 falls back to a threshold of 2.0, which no bootstrap
+reaches, and vsearch skips the rank.
 
-SPDX-License-Identifier: CC-BY-SA-4.0
+*Why per rank.* Reference databases are not equally reliable at every depth.
+Species-level resolution from an 18S V4 or V9 fragment is often unattainable,
+while division-level assignment is usually robust. One global cut-off either
+over-calls species or under-calls divisions. The defaults are conservative
+starting points in line with common DADA2 and vsearch practice. They are
+meant to be replaced per reference and locus, which is why the policy is a
+plain struct you can build from a config file.
+
+*Why the policy is not stored in the receipt.* The receipt records evidence
+(D1). The policy is a judgement about that evidence. Keeping them apart means
+the same receipts can be evaluated under two policies side by side, which is
+how a threshold choice is defended in review.
+
+=== D7. Gates: depth is required; missing controls are not penalised
+
+`passes_gates` requires `depth ≥ depth_min`. Leakage and chimera status are
+checked only when they are present: `neg_leak === nothing` and
+`chimera === nothing` both pass.
+
+*Why.* Read depth is always available from the feature table. Negative
+controls and chimera calls are not: many public datasets have no extraction
+blank, and some pipelines remove chimeras before any table exists. Failing
+every row from such a study would make the package unusable on exactly the
+data where a record of the evidence matters most.
+
+*The cost.* `:Factive` on a row with `neg_leak = nothing` means "no leakage
+was measured", not "no leakage was found". A study that did run controls
+should always fill `neg_leak`. The `Warrant` itself shows which fields were
+filled, so the difference can be seen when the receipt is audited.
+
+=== D8. "Novel" is reachable only after the contamination gate
+
+`residual_info` reports, for the rank below the warranted one, how many named
+candidates remain and whether the row may be called novel. A row is novel
+only when all three hold:
+
+. its status is `:Factive` at a rank coarser than Species;
+. no named species candidate clears the species threshold
+  (`named_candidates_at_species == 0`);
+. the caller's contamination checks passed (`gates_ok_for_novel = true`).
+
+If the first two hold and the third does not, the same evidence is reported
+as `contam_flag = true` with a reason, never as novel.
+
+*Why.* In environmental 18S data, "unassigned below genus" has two common
+explanations: undescribed diversity, and reagent or cross-sample
+contamination. They produce the same classifier output. Requiring the
+contamination checks before the word "novel" is allowed turns an
+interpretation into a recorded decision. The default for `gates_ok_for_novel`
+is `false`, so novelty has to be asserted explicitly.
+
+*Formal basis.* The shape follows
+https://github.com/hyperpolymath/residual-evidence-types[residual-evidence-types],
+where identification quantifies over every admissible candidate. The Julia
+version is a heuristic summary of that idea. The caller supplies the
+candidate count.
+
+=== D9. A zero is either an absence or a non-detection
+
+`disambiguate_zero(w, pol)` returns `Val(:true_absence)` when the sample's
+depth meets `depth_min`, and `Val(:undetected)` otherwise.
+
+*Why.* A zero cell in a feature table is read as absence by most downstream
+statistics. Absence can only be inferred when the sample had the power to
+detect the taxon. The result is a `Val`, so code that dispatches on it cannot
+confuse the two.
+
+=== D10. Merging compares only the judgement surface
+
+`can_merge(manA, manB)` reads each run manifest's `normalisation`, `db.key`,
+`db.release` and `db.ranks`, and returns one of:
+
+[cols="2,3",options="header"]
+|===
+| Verdict | When
+
+| `(status = "OK",)`
+| Same normalisation, reference and release.
+
+| `(status = "REFUSE", reason = "normalisation_mismatch", details)`
+| Normalisations differ, e.g. rarefied against CSS. Relative abundances are
+  not comparable.
+
+| `(status = "OK_COLLAPSE", collapse_to, reason = "db_key_mismatch")`
+| Different references, with a rank both ladders carry.
+
+| `(status = "OK_COLLAPSE", collapse_to, reason = "db_release_mismatch")`
+| Same reference, different release, with a rank both ladders carry.
+
+| `(status = "REFUSE", reason = "no_common_rank", details = "")`
+| Different reference or release and no shared rank.
+|===
+
+*Why collapse and not refuse.* Two PR2 releases usually agree at division
+and class and disagree below. Refusing outright would forbid a legitimate
+coarse comparison. Collapsing names the rank at which the comparison is
+safe.
+
+*Which rank.* `lowest_common_rank` returns the first rank of the first ladder
+that also appears in the second. With the usual coarse-first ladders
+(`["Domain", "Division", ..., "Species"]`) this is the *coarsest* shared rank.
+That is the conservative answer: a collapse can later be relaxed with
+knowledge of which ranks actually agree between releases, but it cannot be
+tightened by a function that cannot see the data. The docstring's phrase
+"finest rank" describes a different function; the behaviour is what
+`test/cases/merge.jl` pins.
+
+*The normalisation flag.* `allow_relative_abundance_if_norm_equal = true` (the
+default) turns the normalisation check on. Setting it to `false` skips that
+check entirely. Do that only for presence/absence analyses, where
+normalisation does not affect the result.
+
+*The no-shared-rank case.* Earlier code returned `OK_COLLAPSE` with no rank
+when a release mismatch left the ladders nothing in common. That was a "safe
+to merge" verdict that named nowhere to merge. It now refuses, as the
+reference-mismatch branch already did. The change is marked
+`POST-RECOVERY FIX` at its site, and a test for it failed before the fix.
+
+=== D11. No accelerator backends
+
+`bulk_verify!(CPUBackend(), receipts)` verifies a batch using
+`Threads.@threads`. `TPUBackend`, `NPUBackend` and `VPUBackend` exist and
+throw a fixed error explaining why they are not implemented.
+
+*Why the stubs exist at all.* Every operation here is a hash plus a handful of
+comparisons per row. That is not dense linear algebra, so moving it to an
+accelerator costs more in transfer than it saves in compute. The stubs make
+that a documented decision rather than an open question. Anyone who wants a
+GPU hashing backend has an interface to implement and a clear statement of
+what it must beat.
+
+=== D12. Small, standard dependencies
+
+The package depends on JSON3 and three standard libraries (SHA, Base64,
+Dates). JSON3 is the one non-standard dependency, and it carries the
+canonical form (D3), so replacing it would change every digest.
+
+== Performance
+
+Measured on an Intel i9-13900H with Julia 1.12.6, over 200,000 receipts:
+
+[cols="2,1,1",options="header"]
+|===
+| Operation | 1 thread | 20 threads
+
+| `verify_receipt`, per receipt             | ~8 µs  | —
+| `bulk_verify!(CPUBackend(), …)`, 200k     | —      | 0.56 s
+| `epi_status`, 200k                        | 1.3–1.7 s | —
+| `encode_avec_fibre`, 200k                 | 0.8–1.0 s | —
+| `parse_avec_fibre`, 200k                  | 2.2–2.7 s | —
+|===
+
+Ranges cover repeated runs. A study-sized table of a few hundred thousand
+feature×sample rows is verified in about a second. Parsing is the slowest
+step because it rebuilds three structs from JSON. Verification and status
+are dominated by SHA-256 over roughly 300 bytes.
+
+== Pipeline compatibility
+
+[cols="1,2,2",options="header"]
+|===
+| Source | Field it provides | How it enters a `Warrant`
+
+| DADA2 `assignTaxonomy(..., outputBootstraps = TRUE)`
+| `$boot`, integers 0–100, one column per rank
+| `boot_min = boot[rank] / 100`. *Divide by 100.* Passing 0–100 unchanged
+  makes every rank pass; the Species threshold of 0.98 must be compared on the
+  same 0–1 scale.
+
+| DADA2 `addSpecies`
+| Exact-match species, no bootstrap
+| Treat as Species only when the Genus bootstrap already clears, or record it
+  as a named candidate for `residual_info`.
+
+| vsearch `--usearch_global --userfields query+target+id+qcov`
+| Percent identity and query coverage, 0–100
+| `id = id / 100`, `cov = qcov / 100`.
+
+| QIIME 2 `feature-classifier classify-sklearn`
+| `Confidence`, 0–1, for the whole lineage
+| Record it as `boot_min`. The policy has tables for `dada2` and `vsearch`
+  only, and an unrecognised tool is never warranted, so these rows are
+  `:Belief` until a policy table for the naive Bayes classifier is added.
+
+| Feature table
+| Reads per feature per sample
+| `depth`.
+
+| Negative controls (extraction blanks, PCR blanks)
+| Reads of the feature in controls
+| `neg_leak = control_reads / sample_reads`, or the `decontam` prevalence
+  score converted to your own leakage rule.
+
+| `removeBimeraDenovo`, UCHIME
+| Chimera calls
+| `chimera`.
+|===
+
+Downstream, the receipt column is carried unchanged through any tool that
+preserves columns (D4).
+https://github.com/hyperpolymath/Protoctist.jl[Protoctist.jl] rolls per-row
+statuses and residuals up a PR2 or SILVA taxonomy and writes them to
+annotated Newick and iTOL datasets. Protoctist 0.1 defines its own receipt
+shapes; binding the two packages through a package extension is planned.
+
+== What it deliberately does not do
+
+* It does not classify, denoise, align or place reads. Those stay with the
+  tools named above.
+* It does not decide contamination. It records the caller's decision and
+  refuses to call a row novel without it.
+* It does not authenticate receipts (D2).
+* It does not normalise counts. It checks that two runs used the same
+  normalisation.
+
+== Current limits
+
+Each is known. Where a test pins the current behaviour, it is named, so the
+behaviour cannot change without someone noticing.
+
+. *A factive status is relative to the warranted rank, not the claimed one.*
+  A receipt claiming `rank = "Species"` whose warrant clears only Genus is
+  `:Factive`, and `highest_warranted_rank` returns `"Genus"`. Callers who
+  report the claimed rank must compare it with the warranted rank and demote.
+  Comparing the two inside `epi_status` is under consideration.
+. *One bootstrap for all ranks.* `boot_min` is a single number compared
+  against every rank's threshold. Pass the bootstrap at the rank being
+  claimed. A per-rank vector would let `highest_warranted_rank` read DADA2's
+  output directly.
+. *The wire form is not percent-encoded.* `encode_avec_fibre` joins raw JSON
+  with `&` and `=`, and `parse_avec_fibre` splits on them. A taxon name or
+  parameter string containing `&` does not round-trip: parsing throws
+  `ArgumentError`, so the failure is loud, not a corrupted receipt. PR2 and
+  SILVA names do not contain `&`, but free-text fields could. The docstring's
+  mention of percent-encoding describes intent, not the current code.
+  `test/cases/receipts.jl` pins the error and carries a `@test_broken` for the
+  round trip. Fixing this changes the wire format and needs a version bump.
+. *The canonical form is JSON3's (D3).* Cross-language verification requires
+  reproducing JSON3's bytes.
+. *`lowest_common_rank`'s docstring says "finest".* The behaviour (the
+  coarsest shared rank on coarse-first ladders) is what is tested and is the
+  conservative choice (D10). The docstring is the part that is wrong.
+  `test/cases/merge.jl` pins the order dependence.
+. *vsearch has no Class threshold* in the default policy. Add one to the
+  policy if your reference resolves class reliably by identity.
+. *Two tools have policy tables.* `highest_warranted_rank` recognises
+  `tool = "dada2"` and `tool = "vsearch"`. Any other tool, including QIIME 2's
+  naive Bayes classifier and SINTAX, is never warranted, so its rows are
+  `:Belief` at best. `test/cases/policy.jl` pins that refusal.
+
+== Checking these claims
+
+[source,bash]
+----
+julia --project=. -e 'using Pkg; Pkg.test()'
+----
+
+`Aqua.test_all` (11 checks) runs first, then the behaviour suite: 89 passing
+tests and one `@test_broken` for the wire-form limit.
+
+[cols="1,2",options="header"]
+|===
+| File | Decisions it pins
+
+| `test/cases/receipts.jl` | D2, D3, D4: tampering with each leg; determinism; wire round-trip; the `&` limit
+| `test/cases/policy.jl`   | D6, D7: each gate and its default; the rank walk for both tools; unknown tools
+| `test/cases/status.jl`   | D5, D8, D9: the four statuses; novel against contamination; zero disambiguation
+| `test/cases/merge.jl`    | D10: every verdict, `lowest_common_rank` order, the no-shared-rank refusal
+| `test/cases/backends.jl` | D11: CPU bulk verification; accelerator stubs refuse
+|===
+
+`src/core/Epistemic.jl` is restored from the original design session. The
+three places where it differs from that source are marked in the code
+(`RECOVERY FIX` where the code could not run, `POST-RECOVERY FIX` where a
+verdict was corrected) and listed in `docs/recovered/README.md`.

@@ -52,3 +52,14 @@ end
     @test lowest_common_rank(["Genus"], ["Species"]) === nothing
     @test lowest_common_rank(String[], PR2_RANKS) === nothing
 end
+
+@testset "merge — a release mismatch with no shared rank refuses" begin
+    # Same DB key, different release, and the two ladders share no rank: there
+    # is nothing to collapse TO, so the only safe verdict is REFUSE — exactly as
+    # the DB-key branch already answers. An OK_COLLAPSE with collapse_to ===
+    # nothing would tell a caller the merge is safe while naming no rank.
+    v = can_merge(man(release = "5.0.0", ranks = ["Domain", "Genus"]),
+                  man(release = "4.14.0", ranks = ["Kingdom", "Species"]))
+    @test v.status == "REFUSE"
+    @test v.reason == "no_common_rank"
+end

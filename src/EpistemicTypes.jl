@@ -2,27 +2,24 @@ module EpistemicTypes
 
 # EpistemicTypes — per-row "claims with receipts" for taxonomic pipelines.
 #
-# Forged from the hyperpolymath julia-library archetype (2026).
+# The implementation is `src/core/Epistemic.jl`, restored from the design
+# thread "Clades and Other Prompts" (2026-09-16). It matches the recovered
+# source (docs/recovered/code-blocks/16-Epistemic.jl) apart from three
+# marked changes:
 #
-# RECOVERY NOTE
-#   The substance of this package is `src/core/Epistemic.jl`, restored
-#   VERBATIM from the Arena.ai thread "Clades and Other Prompts"
-#   (2026-09-16) where it was written and never pushed. It is byte-identical
-#   to the recovered source apart from TWO fixes, each marked `RECOVERY FIX`
-#   at its site, and each of which the code could not run without:
-#
+#   RECOVERY FIX (2) — changes the code could not run without:
 #     1. `using Base64` was missing, though `base64encode` is called.
 #     2. `b64url` passed its replacement pairs as a TUPLE rather than
 #        splatted, so `replace` threw MethodError on every receipt.
 #
-#   Both are mechanical. No threshold, name, signature scheme or docstring
-#   was touched. The code had clearly never been executed.
+#   POST-RECOVERY FIX (1) — a wrong verdict, corrected and pinned by a test:
+#     3. `can_merge` returned OK_COLLAPSE with `collapse_to === nothing` when
+#        two releases of one database share no rank; it now refuses, as the
+#        db-key branch always did.
 #
-#   The module inside is named `Epistemic`, and the recovered file header
-#   names its path as `src/core/Epistemic.jl`; both are preserved. This outer
-#   module carries the package name that `Protoctist.jl` imports.
-#
-#   docs/recovered/ holds the unmodified extracts.
+#   No threshold, name, signature scheme or docstring was otherwise touched.
+#   The inner module keeps its recovered name, `Epistemic`; this outer module
+#   carries the package name.
 
 # --- implementation ------------------------------------------------------
 
@@ -30,7 +27,7 @@ include("core/Epistemic.jl")
 
 # The recovered module declares no `export`s of its own — it was written to be
 # reached as `Epistemic.f`. Name each binding explicitly rather than adding
-# exports to the recovered file, which is kept verbatim.
+# exports to the recovered file, which is kept as recovered.
 using .Epistemic: Standpoint, Warrant, ProjectionY, Receipt, ThresholdPolicy,
                   ResidualInfo, ZeroKind,
                   make_receipt, verify_receipt, encode_avec_fibre, parse_avec_fibre,

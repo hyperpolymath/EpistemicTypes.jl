@@ -22,8 +22,8 @@ conversation *titles only*, never message bodies, which is why searching for
 
 ## How `src/` relates to it
 
-`src/core/Epistemic.jl` **is** `code-blocks/16-Epistemic.jl` — 398 lines,
-byte-identical apart from **two** fixes, each marked `RECOVERY FIX` at its
+`src/core/Epistemic.jl` **is** `code-blocks/16-Epistemic.jl` (398 lines),
+identical apart from three marked changes. Two are `RECOVERY FIX`es at their
 site:
 
 1. **`using Base64` was missing.** The module calls `base64encode`, so it
@@ -38,6 +38,16 @@ Together these mean **the recovered code had never been executed**. That is
 worth knowing when reading it: the logic was reasoned out, not run. Both fixes
 are mechanical and neither touches a name, a threshold, the signature scheme or
 a docstring.
+
+One later change is marked `POST-RECOVERY FIX` at its site, because it
+corrects a verdict rather than making the code run:
+
+3. **`can_merge` on a release mismatch with no shared rank** returned
+   `(status = "OK_COLLAPSE", collapse_to = nothing, ...)` — "safe to merge",
+   naming no rank to merge at. It now returns `REFUSE` / `no_common_rank`, the
+   answer the adjacent db-key branch already gave for the same situation.
+   `test/cases/merge.jl` pins it; the original line is unchanged in
+   `code-blocks/16-Epistemic.jl`.
 
 The smaller `*-Epistemic.jl` blocks (67–120 lines) are **earlier iterations of
 the same module**, superseded by block 16. They are kept because they record

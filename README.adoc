@@ -16,65 +16,38 @@ image:https://api.scorecard.dev/projects/github.com/hyperpolymath/EpistemicTypes
 image:https://sonarcloud.io/api/project_badges/measure?project=hyperpolymath_EpistemicTypes.jl&metric=alert_status[SonarQube Quality Gate,link="https://sonarcloud.io/summary/new_code?id=hyperpolymath_EpistemicTypes.jl"]
 image:https://archive.softwareheritage.org/badge/origin/https://github.com/hyperpolymath/EpistemicTypes.jl/[Archived in Software Heritage,link="https://archive.softwareheritage.org/browse/origin/?origin_url=https://github.com/hyperpolymath/EpistemicTypes.jl"]
 
-// ── Provenance & ecosystem ──────────────────────────────────────────────────
-image:https://img.shields.io/badge/Idris-Inside-5E5086?logo=idris&logoColor=white[Idris Inside,link="https://github.com/hyperpolymath/proven"]
-image:https://img.shields.io/badge/Zig-Zero--overhead-F7A41D?logo=zig&logoColor=black[Zig Zero-overhead FFI,link="https://github.com/hyperpolymath/typed-wasm"]
-image:https://api.thegreenwebfoundation.org/greencheckimage/github.com[Green Web,link="https://www.thegreenwebfoundation.org/green-web-check/?url=github.com"]
+Per-row claims with receipts for taxonomic tables: which tool, database and parameters produced a call, whether the evidence warrants it and at what rank, what is left unresolved below it, and whether two runs can be analysed together.
 
-Per-row claims with receipts: standpoint/warrant/projection fibres, epi_status, residual evidence and a safe cross-run merge check for taxonomic pipelines.
+== What it does
 
+A classifier writes one taxon per row. It does not write down whether that
+call should be believed. EpistemicTypes adds that record, one row at a time:
 
-== What this is
+* a *receipt* that binds the call to its origin: the *standpoint* (tool,
+  version, database, release, parameter hash, normalisation), the *warrant*
+  (the classifier's own numbers and the sample gates) and the *projection*
+  (taxon, rank, feature, sample), sealed with a SHA-256 digest;
+* an *epistemic status* for each row: `:Factive`, `:Belief`, `:Collapsed` or
+  `:SansFibre`;
+* the *residual* below the warranted rank, where "novel" is reachable only
+  after the contamination gates pass;
+* a *merge verdict* for two runs: `OK`, `OK_COLLAPSE` to a shared rank, or
+  `REFUSE`.
 
-`EpistemicTypes.jl` answers one question per row of a taxonomic table:
+Every decision is a constant-time function of one row. Statistics,
+alignment, denoising and phylogenetics stay in the tools that do them
+(DADA2, vsearch, MAFFT, IQ-TREE, EPA-ng); this package records and checks
+what those tools concluded.
 
-[quote]
-____
-On whose authority, on what evidence, and at what rank am I allowed to say this
-is _Giardia_?
-____
+== Installation
 
-It binds every visible taxon to the witness that produced it — a *standpoint*
-(which tool, which version, which database release, which parameters), a
-*warrant* (the classifier's own numbers plus the sample gates), and a
-*projection* (which feature, which sample, which rank) — and signs the three
-together into a portable *receipt* that travels in a CSV column.
+[source,julia]
+----
+using Pkg
+Pkg.add(url = "https://github.com/hyperpolymath/EpistemicTypes.jl")
+----
 
-From that receipt it derives, in O(1) per row:
-
-`epi_status`:: one of `:Factive` (a positive claim is warranted), `:Belief`
-  (real evidence, below threshold), `:Collapsed` (gates failed — there is
-  residue but no claim), `:SansFibre` (the receipt does not verify, so nothing
-  further is asked).
-residual evidence:: what is still open at the next finer rank, with *novel*
-  reachable only after the contamination gates pass — never as a default.
-`can_merge`:: whether two runs may be analysed together, and if not, whether
-  the honest move is to collapse to a shared rank or to refuse outright.
-
-It is deliberately *not* a statistics or machine-learning module. Its own
-header says it plainly: heavy phylogenetics (IQ-TREE, EPA-ng), alignment
-(MAFFT) and denoising (DADA2) live elsewhere; this annotates and verifies
-their output and enforces safe claims. The TPU/NPU/VPU backends exist in order
-to *refuse*, documenting that per-row hashing is not a dense-matmul workload,
-so nobody later assumes hardware magic belongs here.
-
-`Protoctist.jl` imports this package as its evidence vocabulary.
-
-=== Provenance — this code was recovered, not rewritten
-
-`src/core/Epistemic.jl` was written inside an Arena.ai conversation on
-2026-09-16 and never pushed anywhere. It was recovered on 2026-09-23.
-
-It is restored *verbatim*: byte-identical to the extracted source apart from
-two fixes, each marked `RECOVERY FIX` at its site, and neither of which the
-code could run without — a missing `using Base64`, and a `b64url` that passed
-its replacement pairs as a tuple instead of splatting them, throwing
-`MethodError` on every receipt. Together they say something useful about what
-was recovered: **the code had never been executed.** The logic was reasoned
-out, not run. No threshold, name, signature scheme or docstring was touched.
-
-`docs/recovered/` holds the unmodified extracts and names the fragilities that
-were left in place on purpose, each pinned by a test rather than quietly fixed.
+Julia 1.9 or later. The only non-standard-library dependency is JSON3.
 
 == Quick start
 
@@ -86,44 +59,75 @@ k = Standpoint(tool = "dada2", tool_ver = "1.28.0",
                db_key = "pr2", db_release = "5.0.0",
                params_hash = "sha256:...", normalisation = "none")
 
-w = Warrant(boot_min = 0.90,        # the classifier's own confidence
-            depth = 500,            # per-feature count in this sample
-            neg_leak = 0.0,         # leakage against the negative control
+w = Warrant(boot_min = 0.90,    # classifier confidence, on 0–1
+            depth = 500,        # reads for this feature in this sample
+            neg_leak = 0.0,     # fraction seen in the negative control
             chimera = false)
 
 y = ProjectionY(taxon = "Giardia", rank = "Genus",
                 feature_id = "ASV0001", sample_id = "S01")
 
 r = make_receipt(k, w, y)
-verify_receipt(r)                   # true — the signature binds k, w and y
+verify_receipt(r)                                  # true
 
-epi_status(r, ThresholdPolicy())    # :Factive
-highest_warranted_rank(k, w, ThresholdPolicy())   # "Genus", not "Species"
+pol = ThresholdPolicy()
+epi_status(r, pol)                                 # :Factive
+highest_warranted_rank(k, w, pol)                  # "Genus" (0.90 < 0.98 for Species)
 ----
 
-The receipt is designed to survive a spreadsheet:
+=== Status is decided in a fixed order
+
+`epi_status` checks the digest, then the sample gates, then the rank
+thresholds, and stops at the first failure:
+
+[cols="1,3"]
+|===
+| Status | Meaning
+
+| `:SansFibre` | The digest does not match the contents. Nothing else is asked.
+| `:Collapsed` | The digest matches but a sample gate failed (depth below
+                 `depth_min`, negative-control leakage above `neg_leak_max`,
+                 or a chimera flag). There is residue but no claim.
+| `:Belief`    | Gates pass; the classifier clears no rank threshold.
+| `:Factive`   | Gates pass and the classifier clears the threshold at some rank.
+|===
+
+The sample gates outrank the classifier. A bootstrap of 1.0 on three reads is
+`:Collapsed`. Editing any field of a stored receipt makes it `:SansFibre`.
+
+=== Residuals: "novel" has to be earned
 
 [source,julia]
 ----
-s = encode_avec_fibre(r)            # "echo:v1?k=...&w=...&y=...&sig=..."
-back = parse_avec_fibre(s)
-verify_receipt(back)                # still true — the wire form is lossless
-----
-
-Residual evidence, where "novel" has to be earned:
-
-[source,julia]
-----
-# Warranted at Genus, nothing named clears Species, contamination gates pass.
 residual_info(r; named_candidates_at_species = 0, gates_ok_for_novel = true)
-# ResidualInfo(warranted_rank = "Genus", status = :Factive,
-#              residual_has_novel = true, contam_flag = false, ...)
+# warranted_rank = "Genus", status = :Factive, residual_has_novel = true
 
-# Same evidence, gates NOT passed: flagged as contamination, never novel.
 residual_info(r; named_candidates_at_species = 0, gates_ok_for_novel = false)
+# contam_flag = true, residual_has_novel = false
 ----
 
-And the cross-run safety check:
+A row is flagged novel only when its parent clade is `:Factive`, no named
+species clears the species threshold, and the caller's contamination checks
+passed. When those checks fail, the same evidence is reported as possible
+contamination.
+
+`disambiguate_zero` makes the same distinction for an empty cell: a zero is
+`Val(:true_absence)` only when the sample had the depth to detect the taxon,
+and `Val(:undetected)` otherwise.
+
+=== Receipts in a table column
+
+[source,julia]
+----
+s = encode_avec_fibre(r)   # "echo:v1?k={...}&w={...}&y={...}&sig=sha256:..."
+verify_receipt(parse_avec_fibre(s))                # true
+----
+
+A typical receipt is about 350 bytes. It contains commas and double quotes,
+so write it as a quoted CSV field. R's `write.csv`, pandas, and Protoctist's
+ECSV writer all do this by default.
+
+=== Can two runs be pooled?
 
 [source,julia]
 ----
@@ -131,15 +135,74 @@ can_merge(manifest_a, manifest_b)
 # (status = "OK",)
 # (status = "OK_COLLAPSE", collapse_to = "Domain", reason = "db_release_mismatch")
 # (status = "REFUSE", reason = "normalisation_mismatch", details = "rarefy vs rss")
+# (status = "REFUSE", reason = "no_common_rank", details = "")
 ----
 
-=== The order the checks run in matters
+A manifest is a `Dict` with `"normalisation"` and
+`"db" => Dict("key", "release", "ranks")`. Differing normalisation refuses
+relative-abundance pooling. A different database or release collapses both
+runs to a rank both ladders carry, the coarsest one, and refuses when they share none.
 
-`epi_status` asks *verify → gates → rank*, and stops at the first failure. A
-perfect bootstrap on a three-read sample is `:Collapsed`, not `:Factive`: the
-sample gates outrank the classifier, by design. Likewise a zero cell is not
-automatically an absence — `disambiguate_zero` returns `:true_absence` only
-where there was enough depth to have seen something.
+== Where it sits in a pipeline
+
+[cols="1,2,2"]
+|===
+| Tool | What it provides | Join
+
+| DADA2 `assignTaxonomy(..., outputBootstraps = TRUE)`
+| Per-rank bootstrap, integer 0–100
+| Divide by 100 into `boot_min`, using the bootstrap at the rank you claim.
+
+| vsearch `--usearch_global --userfields query+target+id+qcov`
+| Percent identity and query coverage, 0–100
+| Divide both by 100 into `id` and `cov`.
+
+| Feature table and negative controls
+| Per-sample read counts
+| `depth`, and the control fraction as `neg_leak`.
+
+| UCHIME / `removeBimeraDenovo`
+| Chimera calls
+| `chimera`.
+
+| Protoctist.jl
+| Lineage tables, trees, iTOL export
+| Carries receipts and statuses per row and rolls them up a taxonomy.
+|===
+
+`ThresholdPolicy` defaults are DADA2 Species 0.98, Genus 0.88, Class 0.75,
+Division 0.70; vsearch identity/coverage Species 0.99/0.95, Genus 0.95/0.90,
+Division 0.85/0.80; a feature needs 100 reads and at most 0.5% negative-control
+leakage. `docs/EXPLAINME.adoc` gives the reasoning, and why each rank is gated
+separately. All values are overridable per database and locus.
+
+== Formal basis
+
+The status split follows
+https://github.com/hyperpolymath/epistemic-types[epistemic-types], checked in
+Agda with `--safe --without-K`. There, a factive modality has a reflection
+principle and a belief modality deliberately lacks one. The residual summary
+follows
+https://github.com/hyperpolymath/residual-evidence-types[residual-evidence-types],
+where identification quantifies over every admissible candidate. The Julia
+code follows these designs; it is not extracted from the proofs.
+
+== Related packages
+
+* https://github.com/hyperpolymath/Protoctist.jl[Protoctist.jl] — lineage tables, taxonomy trees, jplace and iTOL I/O
+* https://github.com/hyperpolymath/Cladistics.jl[Cladistics.jl] — general tree algebra, LCA
+* https://github.com/hyperpolymath/EchoTypes.jl[EchoTypes.jl] — specification tests
+
+Protoctist 0.1 carries its own copies of the receipt shapes and does not yet
+depend on this package; binding the two through a package extension is planned.
+
+== Design and limits
+
+The engineering decisions, what each one prevents, measured throughput and
+the current limits are in link:docs/EXPLAINME.adoc[docs/EXPLAINME.adoc].
+`src/core/Epistemic.jl` is restored from the original design session; the
+three places it differs from that source are marked in the code and listed in
+link:docs/recovered/README.md[docs/recovered/README.md].
 
 == Testing
 
@@ -148,68 +211,11 @@ where there was enough depth to have seen something.
 julia --project=. -e 'using Pkg; Pkg.test()'
 ----
 
-Aqua's package-shape gate runs first, then the behaviour cases in
-`test/cases/`, which exercise the receipt signature (including tampering with
-each leg), the wire-form round trip, every threshold boundary, all four
-`epi_status` outcomes, the residual/contamination logic, and each `can_merge`
-verdict.
-
-== AI-Assisted Installation
-
-If you are an AI agent installing this project, read
-link:docs/AI_INSTALLATION_GUIDE.adoc[the AI installation guide] first — it gives
-the orientation order, the full prompt sequence, and the privacy notice.
-
-The one trap worth stating up front: **do not set `RSR_NON_INTERACTIVE=1`**. It
-stubs the shell builtin `read`, which also disables the loops that perform token
-substitution — the run never terminates and substitutes nothing. Pipe answers to
-stdin instead.
-
-== What you get
-
-* *Machine-readable metadata* (`.machine_readable/descriptiles/`) — `STATE`, `META`,
-  `ECOSYSTEM`, `PLAYBOOK`, `AGENTIC`, `NEUROSYM`, `CLADE`, and `anchors/ANCHOR`,
-  in deed, so tools and agents can read the project's state and boundaries.
-* *AI gatekeeper protocol* — `EpistemicTypes.jl_chora.deed` (the repo deed) is the
-  universal entry point that tells an AI agent how to work in this repo before it
-  touches anything; it carries the AI allocation policy and the ply directory tree.
-* *Typed ABI/FFI seam* — `src/interface/Abi/` (Idris2 type + layout proofs) over
-  `src/interface/ffi/` (Zig implementation), with generated C headers.
-* *CI/CD* — GitHub Actions for quality, security (CodeQL, Scorecard, secret
-  scanning), multi-forge mirroring, and RSR anti-pattern enforcement.
-* *Supply-chain & reproducibility* — container layering (stapeln), Guix shells,
-  SBOM, and signing hooks.
-* *Governance* — `GOVERNANCE.adoc`, `MAINTAINERS.adoc`, `.github/` community health
-  files, and a release `AUDIT.adoc` gate.
-
-== Repository map
-
-The authoritative map is generated, so it cannot drift from the tree:
-link:docs/architecture/REPOSITORY-MAP.adoc[docs/architecture/REPOSITORY-MAP.adoc]
-(regenerate with `just repo-map`; CI fails if it is stale).
-
-The short version:
-
-[cols="1,3"]
-|===
-| Path | What lives there
-
-| `README.adoc`, `CLAUDE.md` | Start here - humans and AI agents respectively.
-| `src/`, `tests/`           | The code and its tests.
-| `docs/`                    | Human documentation, including the full map above.
-| `.machine_readable/`        | Manifests, contractiles and policies that tools read.
-| `build/`, `Justfile`       | Every task runs through `just`; phases live in `build/just/`.
-| `ci/`, `.github/`          | CI configuration; GitHub reads `.github/` and no other path.
-|===
-
-== Where to go next
-
-* link:docs/architecture/REPOSITORY-MAP.adoc[The repository map] — generated; what every directory is for.
-* link:docs/EXPLAINME.adoc[EXPLAINME] — the engineering deep-dive: how the pieces actually work.
-* link:docs/AFFIRMATION.adoc[AFFIRMATION] — the dated, signed honesty snapshot of the repo's true state.
-* link:docs/AUDIT.adoc[AUDIT] — the release audit gate.
-* link:docs/AI_INSTALLATION_GUIDE.adoc[AI installation guide] — for agents instantiating this template.
-* link:.machine_readable/ai/PLACEHOLDERS.adoc[PLACEHOLDERS] — the full placeholder reference.
+`Aqua.test_all` (11 checks) runs first, then 89 behaviour tests: the digest
+under tampering of each leg, the wire-form round trip, the gate and rank
+thresholds for both tools, all four statuses, the residual and contamination
+logic, and each `can_merge` verdict. One further test is marked `@test_broken`
+for the wire-form limit described in the EXPLAINME.
 
 == Licence
 
