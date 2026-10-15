@@ -451,3 +451,32 @@ tests and one `@test_broken` for the wire-form limit.
 three places where it differs from that source are marked in the code
 (`RECOVERY FIX` where the code could not run, `POST-RECOVERY FIX` where a
 verdict was corrected) and listed in `docs/recovered/README.md`.
+
+== Applications in practice
+
+The worked case is MetaManifold's ASV/OTU stage
+(https://github.com/JoshuaJewell/MetaManifold-WebUI): tables are assembled
+across runs and studies, and a merged row carries no record of *which*
+classifier, reference release, parameters and rank produced its call.
+Merge two runs whose conditions differ and nobody can say what the merged
+call means -- the kind of error a methods section cannot defend because
+nobody can say what was done. Per-row receipts fix exactly this: each
+claim carries its provenance, and `can_merge` answers "can I pool these
+studies?" from the data rather than by memory. What it refuses outright
+is only what no collapse can save: runs normalised differently
+(`REFUSE`, `normalisation_mismatch`), or runs that share no rank
+(`REFUSE`, `no_common_rank`). A reference-database or release mismatch is
+refused when the runs share no rank, and otherwise returned as
+`OK_COLLAPSE` -- a merge conditioned on collapsing to the lowest rank
+the runs share, with the condition recorded. The silent fabrication is
+not the mismatch itself but a caller that merges past the recorded
+decision; the library's job is to make that the only remaining way to
+get it wrong. The same receipts are the substrate MetaManifold's upstream
+design question #27
+(https://github.com/JoshuaJewell/MetaManifold-WebUI/issues/27) asks for:
+evidence keyed by the tree splits a verdict was derived from.
+
+The value in the real world: taxonomy tables are the most-shared artefact in
+amplicon work and the least-provenanced. Receipts cost little to carry and
+make a pooled analysis either honestly conditioned on its sources or
+honestly refused.
