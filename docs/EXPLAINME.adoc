@@ -451,3 +451,23 @@ tests and one `@test_broken` for the wire-form limit.
 three places where it differs from that source are marked in the code
 (`RECOVERY FIX` where the code could not run, `POST-RECOVERY FIX` where a
 verdict was corrected) and listed in `docs/recovered/README.md`.
+
+== Applications in practice
+
+The worked case is MetaManifold's ASV/OTU stage
+(https://github.com/JoshuaJewell/MetaManifold-WebUI): tables are assembled
+across runs and studies, and a merged row carries no record of *which*
+classifier, reference release, parameters and rank produced its call. Merge
+two runs that used different references and the merged table is a silent
+fabrication -- the kind of error a methods section cannot defend because
+nobody can say what was done. Per-row receipts fix exactly this: each claim
+carries its provenance, and the merge refusal fires when run conditions are
+incompatible, so the question "can I pool these studies?" is answered by the
+data structure rather than by memory. The same receipts are the substrate
+MetaManifold's upstream design question #27 asks for: evidence keyed by the
+tree splits a verdict was derived from.
+
+The value in the real world: taxonomy tables are the most-shared artefact in
+amplicon work and the least-provenanced. Receipts cost little to carry and
+make a pooled analysis either honestly conditioned on its sources or
+honestly refused.
