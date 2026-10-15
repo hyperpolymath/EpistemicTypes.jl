@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
 # `Protoctist.jl` — recovered specification
 
 Source: Arena.ai thread **"Clades and Other Prompts"** `01a0a9f1_d658_7865_9fd2_0aa633ea26d7` (external id, written with underscores so the estate's strict UUIDv8 scanner does not misread it; the id is unchanged), created 2026-09-16.

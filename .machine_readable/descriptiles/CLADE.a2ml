@@ -23,7 +23,7 @@
 # The owner segment is part of the derived name, so it is part of the IDENTITY:
 # the same repo hosted under a different owner has a different uuid. Record the
 # owner that is TRUE TODAY, and re-derive if it ever moves.
-uuid = "6b126279-5ce0-56c4-80c1-6022ac8f9962"
+uuid = "01a13f3a-3446-8588-82a2-0f66f985d73d"
 primary-forge = "github"
 primary-owner = "hyperpolymath"
 canonical-name = "EpistemicTypes.jl"

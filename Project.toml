@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 # uuid below is the UUIDv8 re-mint of the package identity (ADR-008
 # amendment D320: an unregistered Julia package's own uuid re-mints as
 # version 8), minted with the estate generator (standards'
