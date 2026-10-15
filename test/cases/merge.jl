@@ -1,8 +1,11 @@
-const PR2_RANKS = ["Domain", "Supergroup", "Division", "Class", "Order", "Family", "Genus", "Species"]
+const PR2_RANKS =
+    ["Domain", "Supergroup", "Division", "Class", "Order", "Family", "Genus", "Species"]
 const SILVA_RANKS = ["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]
 
-man(; norm = "none", key = "pr2", release = "5.0.0", ranks = PR2_RANKS) =
-    Dict("normalisation" => norm, "db" => Dict("key" => key, "release" => release, "ranks" => ranks))
+man(; norm = "none", key = "pr2", release = "5.0.0", ranks = PR2_RANKS) = Dict(
+    "normalisation" => norm,
+    "db" => Dict("key" => key, "release" => release, "ranks" => ranks),
+)
 
 @testset "merge — two runs of the same shape merge outright" begin
     @test can_merge(man(), man()).status == "OK"
@@ -15,8 +18,11 @@ end
     @test occursin("rarefy", v.details) && occursin("rss", v.details)
 
     # Opting out of the relative-abundance rule lets it past this gate.
-    @test can_merge(man(norm = "rarefy"), man(norm = "rss");
-                    allow_relative_abundance_if_norm_equal = false).status == "OK"
+    @test can_merge(
+        man(norm = "rarefy"),
+        man(norm = "rss");
+        allow_relative_abundance_if_norm_equal = false,
+    ).status == "OK"
 end
 
 @testset "merge — database differences collapse rather than refuse" begin
@@ -27,15 +33,19 @@ end
     @test rel.collapse_to == "Domain"
 
     # Different DB key: collapse across the two ladders.
-    key = can_merge(man(key = "pr2", ranks = PR2_RANKS),
-                    man(key = "silva", ranks = SILVA_RANKS))
+    key = can_merge(
+        man(key = "pr2", ranks = PR2_RANKS),
+        man(key = "silva", ranks = SILVA_RANKS),
+    )
     @test key.status == "OK_COLLAPSE"
     @test key.reason == "db_key_mismatch"
     @test key.collapse_to == "Domain"
 
     # No shared rank at all: refuse.
-    none = can_merge(man(key = "pr2", ranks = ["Domain"]),
-                     man(key = "unite", ranks = ["Kingdom"]))
+    none = can_merge(
+        man(key = "pr2", ranks = ["Domain"]),
+        man(key = "unite", ranks = ["Kingdom"]),
+    )
     @test none.status == "REFUSE"
     @test none.reason == "no_common_rank"
 end
@@ -58,8 +68,10 @@ end
     # is nothing to collapse TO, so the only safe verdict is REFUSE — exactly as
     # the DB-key branch already answers. An OK_COLLAPSE with collapse_to ===
     # nothing would tell a caller the merge is safe while naming no rank.
-    v = can_merge(man(release = "5.0.0", ranks = ["Domain", "Genus"]),
-                  man(release = "4.14.0", ranks = ["Kingdom", "Species"]))
+    v = can_merge(
+        man(release = "5.0.0", ranks = ["Domain", "Genus"]),
+        man(release = "4.14.0", ranks = ["Kingdom", "Species"]),
+    )
     @test v.status == "REFUSE"
     @test v.reason == "no_common_rank"
 end

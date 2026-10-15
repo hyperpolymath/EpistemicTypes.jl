@@ -1,6 +1,6 @@
 @testset "backends — CPU verifies in bulk; accelerators refuse by design" begin
     good = make_receipt(SP_DADA2, good_warrant(), Y_GIARDIA)
-    bad  = Receipt(; k = good.k, w = good.w, y = good.y, sig = "sha256:wrong")
+    bad = Receipt(; k = good.k, w = good.w, y = good.y, sig = "sha256:wrong")
 
     @test bulk_verify!(CPUBackend(), [good, bad, good]) == [true, false, true]
     @test bulk_verify!(CPUBackend(), Receipt[]) == Bool[]

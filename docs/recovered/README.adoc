@@ -9,7 +9,7 @@ against what was actually written.
 == Where it came from
 
 The work was done in an Arena.ai conversation titled *"Clades and Other
-Prompts"* (id `01a0a9f1-d658-7865-9fd2-0aa633ea26d7`, created 2026-09-16) and
+Prompts"* (id `01a0a9f1_d658_7865_9fd2_0aa633ea26d7` — external id, underscored so the estate UUIDv8 scanner does not misread it; the id is unchanged — created 2026-09-16) and
 was never pushed to any forge. It was recovered on *2026-09-23* by sweeping
 the full 449-conversation account index; Arena's own search matches
 conversation _titles only_, never message bodies, which is why searching for

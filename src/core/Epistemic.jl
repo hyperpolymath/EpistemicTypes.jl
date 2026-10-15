@@ -251,14 +251,56 @@ function disambiguate_zero(w::Warrant, pol::ThresholdPolicy)::ZeroKind
   end
 end
 
-@kwdef struct ResidualInfo
-  warranted_rank::Union{Nothing,String} = nothing
-  status::Symbol                        = :SansFibre
-  residual_named_count::Int             = 0
-  residual_has_novel::Bool              = false
-  contam_flag::Bool                     = false
-  novel_reasons::Vector{String}         = String[]
-  contam_reasons::Vector{String}        = String[]
+struct ResidualInfo
+  warranted_rank::Union{Nothing,String}
+  status::Symbol
+  residual_named_count::Int
+  residual_has_novel::Bool
+  contam_flag::Bool
+  novel_reasons::Vector{String}
+  contam_reasons::Vector{String}
+
+  # Explicit inner constructor (see Warrant on the sibling repos): dispatch
+  # checks the types, new() stores, and no abstract interpretation of
+  # convert(Vector{String}, ::AbstractArray) explores BitVector/range paths
+  # that cannot occur. @kwdef's generated constructor had the same
+  # exploration artifact, so the keyword form below is explicit too.
+  ResidualInfo(
+    warranted_rank::Union{Nothing,String},
+    status::Symbol,
+    residual_named_count::Int,
+    residual_has_novel::Bool,
+    contam_flag::Bool,
+    novel_reasons::Vector{String},
+    contam_reasons::Vector{String},
+  ) = new(
+    warranted_rank,
+    status,
+    residual_named_count,
+    residual_has_novel,
+    contam_flag,
+    novel_reasons,
+    contam_reasons,
+  )
+end
+function ResidualInfo(;
+  warranted_rank::Union{Nothing,String} = nothing,
+  status::Symbol = :SansFibre,
+  residual_named_count::Int = 0,
+  residual_has_novel::Bool = false,
+  contam_flag::Bool = false,
+  novel_reasons::Vector{String} = String[],
+  contam_reasons::Vector{String} = String[],
+)
+  return ResidualInfo(
+    warranted_rank,
+    status,
+    residual_named_count,
+    residual_has_novel,
+    contam_flag,
+    novel_reasons,
+    contam_reasons,
+  )
 end
 
 """

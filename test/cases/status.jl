@@ -11,13 +11,20 @@
 
     # :Collapsed — verifies, but the sample gates fail. Gates outrank the
     # classifier: a perfect bootstrap on a shallow sample is still collapsed.
-    collapsed = make_receipt(SP_DADA2,
-                             Warrant(boot_min = 0.99, depth = 3, neg_leak = 0.0, chimera = false),
-                             Y_GIARDIA)
+    collapsed = make_receipt(
+        SP_DADA2,
+        Warrant(boot_min = 0.99, depth = 3, neg_leak = 0.0, chimera = false),
+        Y_GIARDIA,
+    )
     @test epi_status(collapsed, pol) == :Collapsed
 
     # :SansFibre — the signature does not verify, so nothing else is asked.
-    sans = Receipt(; k = factive.k, w = factive.w, y = factive.y, sig = "sha256:not-the-signature")
+    sans = Receipt(;
+        k = factive.k,
+        w = factive.w,
+        y = factive.y,
+        sig = "sha256:not-the-signature",
+    )
     @test epi_status(sans, pol) == :SansFibre
 end
 
@@ -25,8 +32,8 @@ end
     pol = ThresholdPolicy()
     @test disambiguate_zero(Warrant(depth = 500), pol) === Val(:true_absence)
     @test disambiguate_zero(Warrant(depth = 100), pol) === Val(:true_absence)
-    @test disambiguate_zero(Warrant(depth = 99), pol)  === Val(:undetected)
-    @test disambiguate_zero(Warrant(), pol)            === Val(:undetected)
+    @test disambiguate_zero(Warrant(depth = 99), pol) === Val(:undetected)
+    @test disambiguate_zero(Warrant(), pol) === Val(:undetected)
 end
 
 @testset "residuals — novel only after the contamination gate" begin
@@ -55,15 +62,22 @@ end
 
     # Already at Species: there is no finer residual to claim.
     at_species = make_receipt(SP_DADA2, good_warrant(boot = 0.99), Y_GIARDIA)
-    sp = residual_info(at_species; named_candidates_at_species = 0, gates_ok_for_novel = true)
+    sp = residual_info(
+        at_species;
+        named_candidates_at_species = 0,
+        gates_ok_for_novel = true,
+    )
     @test sp.warranted_rank == "Species"
     @test !sp.residual_has_novel
 
     # Not Factive: residuals never promote a claim the status refused.
-    collapsed = make_receipt(SP_DADA2,
-                             Warrant(boot_min = 0.99, depth = 3, neg_leak = 0.0, chimera = false),
-                             Y_GIARDIA)
-    co = residual_info(collapsed; named_candidates_at_species = 0, gates_ok_for_novel = true)
+    collapsed = make_receipt(
+        SP_DADA2,
+        Warrant(boot_min = 0.99, depth = 3, neg_leak = 0.0, chimera = false),
+        Y_GIARDIA,
+    )
+    co =
+        residual_info(collapsed; named_candidates_at_species = 0, gates_ok_for_novel = true)
     @test co.status == :Collapsed
     @test !co.residual_has_novel
 end
