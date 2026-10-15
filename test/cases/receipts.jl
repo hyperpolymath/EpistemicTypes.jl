@@ -6,10 +6,17 @@
     @test verify_receipt(r)
 
     # The signature is over canon(k,w,y): change any leg and it must fail.
-    tampered_y = Receipt(; k = r.k, w = r.w,
-                         y = ProjectionY(taxon = "Cryptosporidium", rank = "Genus",
-                                         feature_id = "ASV0001", sample_id = "S01"),
-                         sig = r.sig)
+    tampered_y = Receipt(;
+        k = r.k,
+        w = r.w,
+        y = ProjectionY(
+            taxon = "Cryptosporidium",
+            rank = "Genus",
+            feature_id = "ASV0001",
+            sample_id = "S01",
+        ),
+        sig = r.sig,
+    )
     @test !verify_receipt(tampered_y)
 
     tampered_w = Receipt(; k = r.k, w = good_warrant(boot = 0.10), y = r.y, sig = r.sig)
@@ -22,7 +29,7 @@
     @test make_receipt(SP_DADA2, good_warrant(), Y_GIARDIA).sig == r.sig
 
     # b64url: no padding, no '+' or '/' — it has to survive a CSV cell.
-    payload = r.sig[(length("sha256:") + 1):end]
+    payload = r.sig[(length("sha256:")+1):end]
     @test !occursin('=', payload)
     @test !occursin('+', payload)
     @test !occursin('/', payload)
@@ -55,9 +62,19 @@ end
     # with an error rather than yielding a wrong receipt — pinned so it stays
     # loud. The @test_broken turns into an "unexpected pass" once the wire
     # form is escaped, which is the prompt to update this test set.
-    y = ProjectionY(taxon = "Giardia & co", rank = "Genus",
-                    feature_id = "ASV0001", sample_id = "S01")
+    y = ProjectionY(
+        taxon = "Giardia & co",
+        rank = "Genus",
+        feature_id = "ASV0001",
+        sample_id = "S01",
+    )
     s = encode_avec_fibre(make_receipt(SP_DADA2, good_warrant(), y))
     @test_throws ArgumentError parse_avec_fibre(s)
-    @test_broken (try verify_receipt(parse_avec_fibre(s)) catch; false end)
+    @test_broken (
+        try
+            verify_receipt(parse_avec_fibre(s))
+        catch
+            false
+        end
+    )
 end

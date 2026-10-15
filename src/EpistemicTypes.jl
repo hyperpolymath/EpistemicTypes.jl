@@ -28,13 +28,31 @@ include("core/Epistemic.jl")
 # The recovered module declares no `export`s of its own — it was written to be
 # reached as `Epistemic.f`. Name each binding explicitly rather than adding
 # exports to the recovered file, which is kept as recovered.
-using .Epistemic: Standpoint, Warrant, ProjectionY, Receipt, ThresholdPolicy,
-                  ResidualInfo, ZeroKind,
-                  make_receipt, verify_receipt, encode_avec_fibre, parse_avec_fibre,
-                  passes_gates, highest_warranted_rank, epi_status, disambiguate_zero,
-                  residual_info, can_merge, lowest_common_rank,
-                  ComputeBackend, CPUBackend, TPUBackend, NPUBackend, VPUBackend,
-                  bulk_verify!
+using .Epistemic:
+    Standpoint,
+    Warrant,
+    ProjectionY,
+    Receipt,
+    ThresholdPolicy,
+    ResidualInfo,
+    ZeroKind,
+    make_receipt,
+    verify_receipt,
+    encode_avec_fibre,
+    parse_avec_fibre,
+    passes_gates,
+    highest_warranted_rank,
+    epi_status,
+    disambiguate_zero,
+    residual_info,
+    can_merge,
+    lowest_common_rank,
+    ComputeBackend,
+    CPUBackend,
+    TPUBackend,
+    NPUBackend,
+    VPUBackend,
+    bulk_verify!
 
 # --- public API ----------------------------------------------------------
 

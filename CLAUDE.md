@@ -60,7 +60,7 @@ Use plain JavaScript when this tooling is needed. The "use ReScript" rule is ret
 
 # This repo: `EpistemicTypes.jl`  ·  clade `rm-EpistemicTypes.jl`
 
-- **Identity** — uuid `a5ea1382-a34c-5334-8a46-a2ebe904c810`; clade `rm` (secondary ``); born 2026-03-16; forge `hyperpolymath/EpistemicTypes.jl`.
+- **Identity** — uuid `01a13f3a-3446-8588-82a2-0f66f985d73d` (UUIDv8 re-mint, ADR-008 D320; supersedes the mint-time v5 literal, which is in git history); clade `rm` (secondary ``); born 2026-03-16; forge `hyperpolymath/EpistemicTypes.jl`.
 - **IS** — Canonical RSR-compliant repository template: scaffolding (CI/CD, AI manifests, ABI/FFI standards, container ecosystem, governance) that new hyperpolymath projects are instantiated from.
 - **IS-NOT** — a project in its own right · Scaffoldia (the full-featured repo designer) · standards (the canon source this template operationalises)
 - **Where it sits** — pipeline position **foundation**; chain `standards → EpistemicTypes.jl → (every estate repo)`; coordination = `standards`.

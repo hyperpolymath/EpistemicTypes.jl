@@ -28,17 +28,25 @@ end
     @test highest_warranted_rank(SP_DADA2, Warrant(depth = 500), pol) === nothing
 
     # vsearch needs BOTH identity and coverage.
-    @test highest_warranted_rank(SP_VSEARCH, Warrant(id = 0.995, cov = 0.96), pol) == "Species"
+    @test highest_warranted_rank(SP_VSEARCH, Warrant(id = 0.995, cov = 0.96), pol) ==
+          "Species"
     @test highest_warranted_rank(SP_VSEARCH, Warrant(id = 0.96, cov = 0.92), pol) == "Genus"
-    @test highest_warranted_rank(SP_VSEARCH, Warrant(id = 0.995, cov = 0.10), pol) === nothing
+    @test highest_warranted_rank(SP_VSEARCH, Warrant(id = 0.995, cov = 0.10), pol) ===
+          nothing
     @test highest_warranted_rank(SP_VSEARCH, Warrant(id = 0.995), pol) === nothing
 
     # An unknown tool is never warranted, whatever the numbers say.
-    unknown = Standpoint(tool = "handwave", tool_ver = "0", db_key = "pr2",
-                         db_release = "5.0.0", params_hash = "sha256:0",
-                         normalisation = "none")
+    unknown = Standpoint(
+        tool = "handwave",
+        tool_ver = "0",
+        db_key = "pr2",
+        db_release = "5.0.0",
+        params_hash = "sha256:0",
+        normalisation = "none",
+    )
     @test highest_warranted_rank(unknown, Warrant(boot_min = 1.0), pol) === nothing
 
     # The rank walk does not depend on the gates.
-    @test highest_warranted_rank(SP_DADA2, Warrant(boot_min = 0.90, depth = 1), pol) == "Genus"
+    @test highest_warranted_rank(SP_DADA2, Warrant(boot_min = 0.90, depth = 1), pol) ==
+          "Genus"
 end
