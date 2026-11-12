@@ -1,45 +1,41 @@
 # SPDX-License-Identifier: MPL-2.0
-# ECOSYSTEM.a2ml — Ecosystem position (META-TEMPLATE)
+# ECOSYSTEM.a2ml: where EpistemicTypes.jl sits in the estate.
 #
-# This is the ECOSYSTEM file for EpistemicTypes.jl itself. It records the
-# TEMPLATE's own position in the estate. When consumed by a new project,
-# replace these fields with the target project's ecosystem position and
-# related projects (see the NOTE FOR CONSUMERS at the bottom).
+# Written anew on 2026-11-12 from Project.toml, README.adoc, VARIANT.a2ml and
+# the sibling repositories. It replaces the template's own ECOSYSTEM, which
+# this repository carried from its mint. Planned to move into the repo deed
+# with the other descriptiles.
 
 [metadata]
 project = "EpistemicTypes.jl"
 ecosystem = "hyperpolymath"
 
 [position]
-type = "repository-template"
-purpose = "Canonical RSR-compliant repository template: scaffolding (CI/CD, AI manifests, ABI/FFI standards, container ecosystem, governance) that new hyperpolymath projects are instantiated from."
-# IS-NOT — anti-identity (the boundary-erosion guard; each line is a real past confusion)
+type = "julia-library"
+purpose = "Per-row claims with receipts for taxonomic tables: standpoint/warrant/projection fibres, epi_status, residual evidence and a safe cross-run merge check."
+# IS-NOT: anti-identity (the boundary-erosion guard)
 what-this-is-not = [
-  "a project in its own right",
-  "Scaffoldia (the full-featured repo designer)",
-  "standards (the canon source this template operationalises)",
+  "rsr-template-repo (the template this repository was minted from; its ECOSYSTEM, STATE and CHANGELOG were carried here by mistake)",
+  "a proof (the status split follows the Agda design epistemic-types; this Julia code is not extracted from it)",
+  "a classifier, aligner, denoiser or phylogenetics tool (DADA2, vsearch, MAFFT, IQ-TREE and EPA-ng do that work; this package records and checks what they concluded)",
+  "a signature scheme (the receipt `sig` is an unkeyed SHA-256 digest: it detects accidental edits, not deliberate ones)",
+  "ResidualEvidenceTypes.jl (its Case and candidate sets are a different object; ResidualInfo here is a per-row heuristic that shares only the word 'residual')",
 ]
 
 [pipeline]
-position = "foundation"
-chain = "standards → rsr-template-repo → (every estate repo)"
-notes = "rsr-template-repo turns the RSR standard into runnable scaffolding. New repos are created from it via `just repo-init`, which substitutes the {{PLACEHOLDER}} tokens."
-coordination = "standards"
+position = "library"
+chain = "DADA2 / vsearch (classifier calls) → EpistemicTypes.jl (receipts, epi_status, merge verdict) → Protoctist.jl and downstream analysis"
+notes = "Depends only on JSON3 and the Julia standard library. Protoctist.jl does not depend on it yet."
+coordination = "nextgen-typing"
 
 [related-projects]
 projects = [
-  { name = "standards", relationship = "standard-source", notes = "Defines the RSR standard, contractile canon, and policies that this template operationalises." },
-  { name = "stapeln", relationship = "build-tooling", notes = "Layer-based container build system; the template ships stapeln.toml scaffolding." },
-  { name = "selur-compose", relationship = "build-tooling", notes = "Service composition; the template ships selur-compose.toml scaffolding." },
-  { name = "k9-svc", relationship = "validation-tooling", notes = "Runs the self-validating k9.ncl checks (.machine_readable/self-validating/)." },
-  { name = "cerro-torre", relationship = "signing-tooling", notes = "Container/image signing provider referenced by the container scaffolding." },
-  { name = "svalinn", relationship = "verification-tooling", notes = "Supply-chain verification referenced by the container scaffolding." },
-  { name = "vordr", relationship = "verification-tooling", notes = "Build/artifact verification referenced by the container scaffolding." },
+  { name = "epistemic-types", relationship = "formal-specification", notes = "Agda (--safe --without-K) design that the status split follows: a factive modality with a reflection principle, a belief modality without one." },
+  { name = "residual-evidence-types", relationship = "formal-specification", notes = "Agda design that the residual summary follows, where identification quantifies over every admissible candidate." },
+  { name = "Protoctist.jl", relationship = "planned-consumer", notes = "Lineage tables, trees, jplace and iTOL I/O. Carries its own Standpoint, Warrant and ProjectionY with different fields; binding through a package extension is planned and needs one owner for those types." },
+  { name = "Cladistics.jl", relationship = "sibling", notes = "General tree algebra and LCA." },
+  { name = "EchoTypes.jl", relationship = "sibling", notes = "Executable companion to the Agda library echo-types: the finite-domain shadow of its theorems." },
+  { name = "ResidualEvidenceTypes.jl", relationship = "sibling", notes = "Executable companion to residual-evidence-types." },
+  { name = "nextgen-typing", relationship = "coordination", notes = "Cross-project map and shared glossary; its map lists epistemic-types." },
+  { name = "rsr-template-repo", relationship = "minted-from", notes = "Template parent recorded in VARIANT.a2ml; supplies the CI, governance and machine-readable scaffolding." },
 ]
-
-# ---------------------------------------------------------------------------
-# NOTE FOR CONSUMERS: When using this template to create a new repo, replace
-# the project/purpose above and rewrite [related-projects] to describe YOUR
-# project's actual ecosystem. The entries above describe the TEMPLATE's own
-# position, not yours.
-# ---------------------------------------------------------------------------
