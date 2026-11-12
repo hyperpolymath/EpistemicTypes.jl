@@ -6,80 +6,59 @@ The format is based on https://keepachangelog.com/en/1.1.0/[Keep a
 Changelog], and this project adheres to
 https://semver.org/spec/v2.0.0.html[Semantic Versioning].
 
+No release has been tagged. `0.1.0` is the version in `Project.toml` and the
+release recorded in `CITATION.cff`.
+
 === [Unreleased]
+
+==== Changed
+
+* *Breaking:* `disambiguate_zero` now takes the sample's total read count
+  (library size) and a `ThresholdPolicy`, as `disambiguate_zero(sample_depth,
+  pol)`. The method that took a `Warrant` is removed. It compared the warrant's
+  per-feature `depth`, which is 0 in a zero cell, so it could never return
+  `true_absence`. Marked `POST-RECOVERY FIX (4)` in `src/core/Epistemic.jl`.
+* The Julia compatibility floor is 1.10 (was 1.9), and CI tests that floor.
+* The package UUID was re-minted as a UUIDv8 (estate ADR-008 amendment D320).
+  The previous UUIDv5 is in the git history of `Project.toml`.
 
 ==== Added
 
-* `www/` site-operations bundle (issue #53): canonical `.well-known/`
-  metadata, publishable content, policy sources, error bodies,
-  security-header templates, Caddy/nginx/Apache integration examples, an
-  authoritative-only BIND 9 starting hand with record templates,
-  encrypted-DNS/privacy and TLS guidance, explicit opt-in profiles,
-  schemas, planted-control tests and operational runbooks.
-* `scripts/migrate-wellknown-to-www.sh` — conflict-safe migration of a
-  repository-root `.well-known/` into `www/.well-known/` (identical copies
-  de-duplicated, root-only content moved, divergent content quarantined —
-  see Changed).
-* `scripts/sweep-wellknown.sh` — stage 5 (#119) batch driver: classify,
-  migrate, test and commit across the estate in batches of 25, holding
-  Pages-served and non-RSR repositories for a human decision instead of
-  sweeping them blind.
-* `www/runbooks/stage5-wellknown-sweep.adoc` — how to run the sweep, and
-  how to recover from a quarantine.
-* Mint wiring for the `www/` bundle: `repo-init` now invokes
-  `scripts/migrate-wellknown-to-www.sh` when the tree being minted still
-  carries a legacy root `.well-known/`, and runs `www/tests/run-all.sh`
-  afterwards. Both are no-ops for a repository minted from the current
-  template; they exist for running `repo-init` over a tree that predates
-  #53. #106 described both as already present — neither was, which is a
-  fair part of why the estate still carries root `.well-known/` directories.
-
-==== Changed
-
-* Canonical `.well-known/` location moved from the repository root to
-  `www/.well-known/`. Well-known enforcement, Groove checks, the root-shape
-  allowlist, the SSG bootstrap and the documentation now prefer the `www/`
-  location and accept the legacy root location with a warning during the
-  migration window.
-
-==== Changed
-
-* Divergent root/`www/` `.well-known/` content is now quarantined to
-  `www/.legacy-well-known-<YYYYMMDD>/` instead of being left in place: the
-  estate-wide sweep (#119) is unattended, so a conflict must not halt it, and
-  must not be silent either. The `www/` copy is untouched, both hashes are
-  printed, and the run exits non-zero. `--in-place` keeps the previous
-  contract (preserve both, exit 1) for hand resolution. The quarantine lives
-  under `www/` rather than at the root because the root allowlist is matched
-  literally and bidirectionally, so a dated root directory would report as
-  drift in every repository swept.
+* `ThresholdPolicy.sample_depth_min`, the library size at which a zero cell
+  counts as an absence. It has no default; `disambiguate_zero` throws
+  `ArgumentError` until it is set.
+* `docs/ARCHITECTURE.adoc`, and decision records, measured costs and current
+  limits in `docs/EXPLAINME.adoc`.
+* An abstract and subject keywords in `CITATION.cff`, and the author's ORCID.
 
 ==== Fixed
 
-* `dot-wellknown-enforcement.yml` now drives the migrator that #106 described
-  but never wired up: previously the workflow only printed advice to run it,
-  so nothing verified that a repository would survive the migration. It now
-  runs the migrator in `--dry-run` and turns every conflict into a
-  `::warning` annotation — a warning, not an error, for the migration window.
-* The migrator's acceptance test had encoded the in-place contract as the
-  required behaviour, contradicting #106's stated design; it now proves the
-  quarantine contract across nine scenarios, including the collision case
-  where a quarantine name is already taken.
-* `tests/e2e/template_instantiation_test.sh` fed the three container answers
-  only when `container/` existed, but `build/just/repo-init.just` asks those
-  questions when `build/container/` does. On any complete checkout — which is
-  what CI clones — the recipe asked three questions the test had no answers
-  for, `read` hit EOF, and the recipe exited 1, so the instantiation e2e was
-  red at the container prompt. The guard now matches the recipe's own path.
-  (The test also needed `ruby` for the two mint tools. Those are Rust as
-    of 2026-09-18, so it no longer stops there.)
+* `can_merge` refuses with `no_common_rank` when two releases of one database
+  share no rank. It returned `OK_COLLAPSE` with `collapse_to === nothing`.
+  Marked `POST-RECOVERY FIX` in `src/core/Epistemic.jl`.
+* The README gave the Julia floor as 1.9.
+* `CHANGELOG.adoc`, `STATE.a2ml` and the `CITATION.cff` keywords described the
+  repository template this package was minted from, not the package.
 
-* Restore the modular `just` recipes removed by the root-layout refactor, so
-  `just repo-init`, validation, assessment, container, Groove, and proof tasks
-  are available again.
-* Require lowercase hyphenated repository slugs at initialization and verify
-  that both Guix package definitions receive the rendered slug and project URL.
-* Keep template validation aligned with authority documents moved under
-  `docs/`, and repair the cross-platform `cloak`/`uncloak` recipe syntax.
-* Restore the tracked-file language-ban gate with regression fixtures proving
-  that supported Zig passes while prohibited V-language remnants fail.
+==== Removed
+
+* `.github/workflows/rust-ci.yml`. The package has no Rust code.
+* The template's documentation and the unwired Idris2/Zig skeleton under
+  `src/`. `src/` holds only the package.
+
+=== [0.1.0] - 2026-09-23
+
+==== Added
+
+* `module Epistemic` (`src/core/Epistemic.jl`), restored from the design
+  thread "Clades and Other Prompts" with the two `RECOVERY FIX` changes it
+  needed to run: the missing `using Base64`, and the `replace` call in
+  `b64url`.
+* Receipts: `Standpoint`, `Warrant`, `ProjectionY`, `Receipt`,
+  `make_receipt`, `verify_receipt`, and the `avec_fibre` wire form.
+* Decisions: `ThresholdPolicy`, `passes_gates`, `highest_warranted_rank`,
+  `epi_status`, `disambiguate_zero`, `residual_info`, `can_merge` and
+  `lowest_common_rank`.
+* `CPUBackend` with `bulk_verify!`, and TPU, NPU and VPU stubs that refuse.
+* The test suite: Aqua package-shape checks, then behaviour tests in
+  `test/cases/`.

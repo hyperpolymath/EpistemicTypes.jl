@@ -47,7 +47,7 @@ using Pkg
 Pkg.add(url = "https://github.com/hyperpolymath/EpistemicTypes.jl")
 ----
 
-Julia 1.9 or later. The only non-standard-library dependency is JSON3.
+Julia 1.10 or later. The only non-standard-library dependency is JSON3.
 
 == Quick start
 
