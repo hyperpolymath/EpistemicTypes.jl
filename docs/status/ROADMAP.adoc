@@ -5,7 +5,7 @@
 == 0.1.0 (current)
 
 * Receipts split into standpoint, warrant and projection, with a
-  tamper-evident digest over a canonical JSON form.
+  digest over a canonical JSON form that makes accidental edits evident.
 * A one-column wire form for carrying receipts in CSV and ECSV tables.
 * `epi_status`, decided in a fixed order: digest, then gates, then rank.
 * Per-rank threshold policies for DADA2 and vsearch, held as data.
@@ -27,14 +27,6 @@ Per-rank bootstrap::
 Accept a bootstrap per rank instead of a single `boot_min`, so DADA2 output can
 be read directly.
 
-Percent-encoded wire form::
-Encode `&` and `=` in the wire form, so free-text fields round-trip. This
-changes the wire format and needs a version bump.
-
 More classifier policies::
 Policy tables for QIIME 2's naive Bayes classifier and SINTAX, whose rows are
 currently `:Belief` at best.
-
-`lowest_common_rank` docstring::
-Correct the docstring to describe the tested behaviour: the coarsest shared
-rank on coarse-first ladders.

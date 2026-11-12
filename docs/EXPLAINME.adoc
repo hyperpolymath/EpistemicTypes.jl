@@ -62,7 +62,7 @@ only. Status, warranted rank and residuals are recomputed from it under a
 policy (D6). A receipt written today can be re-judged under stricter
 thresholds next year without being reissued.
 
-=== D2. The digest makes a receipt tamper-evident, not authenticated
+=== D2. The digest makes accidental edits evident; it does not authenticate
 
 `make_receipt` computes `sig = "sha256:" * base64url(SHA-256(canon(k, w, y)))`,
 where `canon` is the JSON3 serialisation of the named tuple `(k, w, y)`.
@@ -77,7 +77,7 @@ turn and checks that verification fails every time.
 receipt can recompute its digest, so it establishes integrity, not origin. For
 authenticity, sign the canonical payload with a key (an Ed25519 signature
 over the same bytes, or an HMAC inside a closed pipeline) in a layer above this
-one. The `v = "echo:v1"` tag leaves room for that to be added without breaking
+one. The `v` version tag leaves room for that to be added without breaking
 existing receipts.
 
 *Why base64url without padding.* The digest is 43 characters from
@@ -108,20 +108,28 @@ exactly as constructed.
 `encode_avec_fibre` produces
 
 ----
-echo:v1?k=<json>&w=<json>&y=<json>&sig=sha256:<43 chars>
+echo:v2?k=<json>&w=<json>&y=<json>&sig=sha256:<43 chars>
 ----
 
-and `parse_avec_fibre` reverses it. A typical receipt is about 350 bytes.
+with every value percent-encoded (RFC 3986 unreserved bytes pass through), and
+`parse_avec_fibre` reverses it. A typical receipt is about 540 bytes (about 360
+in the older form).
+
+*Why percent-encoding.* The older `echo:v1` form joined raw JSON with `&` and
+`=`, so a free-text field holding `&` could not round-trip. `echo:v2` encodes
+every value, so any field round-trips. `parse_avec_fibre` still reads `echo:v1`
+strings exactly as before, and records the tag it read in the receipt's `v`.
+The change is marked `POST-RECOVERY CHANGE (6)` in the code.
 
 *Why a single column.* A receipt that lives in its own column survives any
 tool that preserves columns: R data frames, pandas, `csvkit`, database
 imports, QIIME 2 metadata. Spreading it across six columns would invite the
 column shifts D2 exists to detect.
 
-*Quoting.* The value contains commas and double quotes, so it must be written
-as a quoted CSV field with inner quotes doubled. `write.csv`, `readr`, pandas,
-CSV.jl and Protoctist's ECSV writer all do this by default. Hand-rolled
-`paste(..., sep = ",")` output does not.
+*Quoting.* An `echo:v2` value has no commas, double quotes, spaces or tabs, so
+it needs no quoting in CSV, TSV or ECSV. An `echo:v1` value contains commas and
+double quotes, so it must be a quoted CSV field with inner quotes doubled, as
+`write.csv`, `readr`, pandas, CSV.jl and Protoctist's ECSV writer do by default.
 
 *Parsing does not verify.* `parse_avec_fibre` checks the version prefix and
 the presence of all four parts, then returns a `Receipt`. Verification is a
@@ -260,8 +268,8 @@ chooses one. This is marked `POST-RECOVERY FIX (4)` in the code.
 
 === D10. Merging compares only the judgement surface
 
-`can_merge(manA, manB)` reads each run manifest's `normalisation`, `db.key`,
-`db.release` and `db.ranks`, and returns one of:
+`can_merge(manA, manB; collapse_to = nothing)` reads each run manifest's
+`normalisation`, `db.key`, `db.release` and `db.ranks`, and returns one of:
 
 [cols="2,3",options="header"]
 |===
@@ -274,14 +282,18 @@ chooses one. This is marked `POST-RECOVERY FIX (4)` in the code.
 | Normalisations differ, e.g. rarefied against CSS. Relative abundances are
   not comparable.
 
+| `(status = "REFUSE", reason = "collapse_rank_required", details)`
+| Different reference or release, and the caller named no `collapse_to`.
+  `details` is `"db_key_mismatch"` or `"db_release_mismatch"`.
+
+| `(status = "REFUSE", reason = "collapse_rank_not_in_both", details)`
+| Different reference or release, and one ladder lacks the named rank.
+
 | `(status = "OK_COLLAPSE", collapse_to, reason = "db_key_mismatch")`
-| Different references, with a rank both ladders carry.
+| Different references, and both ladders carry the named rank.
 
 | `(status = "OK_COLLAPSE", collapse_to, reason = "db_release_mismatch")`
-| Same reference, different release, with a rank both ladders carry.
-
-| `(status = "REFUSE", reason = "no_common_rank", details = "")`
-| Different reference or release and no shared rank.
+| Same reference, different release, and both ladders carry the named rank.
 |===
 
 *Why collapse and not refuse.* Two PR2 releases usually agree at division
@@ -289,14 +301,15 @@ and class and disagree below. Refusing outright would forbid a legitimate
 coarse comparison. Collapsing names the rank at which the comparison is
 safe.
 
-*Which rank.* `lowest_common_rank` returns the first rank of the first ladder
-that also appears in the second. With the usual coarse-first ladders
-(`["Domain", "Division", ..., "Species"]`) this is the *coarsest* shared rank.
-That is the conservative answer: a collapse can later be relaxed with
-knowledge of which ranks actually agree between releases, but it cannot be
-tightened by a function that cannot see the data. The docstring's phrase
-"finest rank" describes a different function; the behaviour is what
-`test/cases/merge.jl` pins.
+*Why the caller names the rank.* Rank names alone cannot show where two
+taxonomies still agree. Two releases of one database have identical ladders,
+so a "finest shared rank" would be `Species`, which is no collapse at all; a
+"coarsest shared rank" would be `Domain`, which keeps almost nothing. Only the
+person who knows the two releases can choose, so `can_merge` refuses until a
+`collapse_to` is given, and then checks that both ladders carry it. This is
+marked `POST-RECOVERY FIX (5)` in the code. `lowest_common_rank` is still
+exported; it returns the first rank of its first ladder that the second also
+carries, which on coarse-to-fine ladders is the coarsest shared rank.
 
 *The normalisation flag.* `allow_relative_abundance_if_norm_equal = true` (the
 default) turns the normalisation check on. Setting it to `false` skips that
@@ -305,22 +318,23 @@ normalisation does not affect the result.
 
 *The no-shared-rank case.* Earlier code returned `OK_COLLAPSE` with no rank
 when a release mismatch left the ladders nothing in common. That was a "safe
-to merge" verdict that named nowhere to merge. It now refuses, as the
-reference-mismatch branch already did. The change is marked
-`POST-RECOVERY FIX` at its site, and a test for it failed before the fix.
+to merge" verdict that named nowhere to merge. Fix (3) made it refuse; fix (5)
+covers it too, because a rank that one ladder lacks is refused.
 
 === D11. No accelerator backends
 
-`bulk_verify!(CPUBackend(), receipts)` verifies a batch using
-`Threads.@threads`. `TPUBackend`, `NPUBackend` and `VPUBackend` exist and
-throw a fixed error explaining why they are not implemented.
+`bulk_verify(CPUBackend(), receipts)` verifies a batch using
+`Threads.@threads`. It does not modify `receipts`, so it has no `!`; the old
+name `bulk_verify!` is a deprecated alias.
 
-*Why the stubs exist at all.* Every operation here is a hash plus a handful of
-comparisons per row. That is not dense linear algebra, so moving it to an
-accelerator costs more in transfer than it saves in compute. The stubs make
-that a documented decision rather than an open question. Anyone who wants a
-GPU hashing backend has an interface to implement and a clear statement of
-what it must beat.
+*Why CPU only.* Every operation here is a hash plus a handful of comparisons
+per row. That is not dense linear algebra, so moving it to an accelerator
+costs more in transfer than it saves in compute. The recovered code carried
+TPU, NPU and VPU stub backends that only threw an error; they are removed
+(`POST-RECOVERY CHANGE (7)`). Coprocessor contracts belong to
+https://github.com/hyperpolymath/CoprocessorRuntime.jl[CoprocessorRuntime.jl]
+and backend selection to
+https://github.com/hyperpolymath/AcceleratorGate.jl[AcceleratorGate.jl].
 
 === D12. Small, standard dependencies
 
@@ -420,20 +434,11 @@ behaviour cannot change without someone noticing.
   against every rank's threshold. Pass the bootstrap at the rank being
   claimed. A per-rank vector would let `highest_warranted_rank` read DADA2's
   output directly.
-. *The wire form is not percent-encoded.* `encode_avec_fibre` joins raw JSON
-  with `&` and `=`, and `parse_avec_fibre` splits on them. A taxon name or
-  parameter string containing `&` does not round-trip: parsing throws
-  `ArgumentError`, so the failure is loud, not a corrupted receipt. PR2 and
-  SILVA names do not contain `&`, but free-text fields could. The docstring's
-  mention of percent-encoding describes intent, not the current code.
-  `test/cases/receipts.jl` pins the error and carries a `@test_broken` for the
-  round trip. Fixing this changes the wire format and needs a version bump.
+. *`echo:v1` strings keep their limit.* They are still read, and a v1 field
+  holding `&` still fails loudly with `ArgumentError`. New receipts are
+  written as `echo:v2`, which has no such limit (D4).
 . *The canonical form is JSON3's (D3).* Cross-language verification requires
   reproducing JSON3's bytes.
-. *`lowest_common_rank`'s docstring says "finest".* The behaviour (the
-  coarsest shared rank on coarse-first ladders) is what is tested and is the
-  conservative choice (D10). The docstring is the part that is wrong.
-  `test/cases/merge.jl` pins the order dependence.
 . *vsearch has no Class threshold* in the default policy. Add one to the
   policy if your reference resolves class reliably by identity.
 . *Two tools have policy tables.* `highest_warranted_rank` recognises
@@ -448,24 +453,25 @@ behaviour cannot change without someone noticing.
 julia --project=. -e 'using Pkg; Pkg.test()'
 ----
 
-`Aqua.test_all` (11 checks) runs first, then the behaviour suite: 93 passing
-tests and one `@test_broken` for the wire-form limit.
+`Aqua.test_all` (11 checks) runs first, then the behaviour suite: 110 passing
+tests.
 
 [cols="1,2",options="header"]
 |===
 | File | Decisions it pins
 
-| `test/cases/receipts.jl` | D2, D3, D4: tampering with each leg; determinism; wire round-trip; the `&` limit
+| `test/cases/receipts.jl` | D2, D3, D4: an edit to each leg; determinism; the echo:v2 round trip with `&`, `=` and non-ASCII; echo:v1 still read
 | `test/cases/policy.jl`   | D6, D7: each gate and its default; the rank walk for both tools; unknown tools
 | `test/cases/status.jl`   | D5, D8, D9: the four statuses; novel against contamination; zero disambiguation
-| `test/cases/merge.jl`    | D10: every verdict, `lowest_common_rank` order, the no-shared-rank refusal
-| `test/cases/backends.jl` | D11: CPU bulk verification; accelerator stubs refuse
+| `test/cases/merge.jl`    | D10: every verdict, the caller-named collapse rank, `lowest_common_rank` order
+| `test/cases/backends.jl` | D11: CPU bulk verification; the deprecated alias; no stub backends
 |===
 
 `src/core/Epistemic.jl` is restored from the original design session. The
-four places where it differs from that source are marked in the code
+seven places where it differs from that source are marked in the code
 (`RECOVERY FIX` where the code could not run, `POST-RECOVERY FIX` where a
-verdict was corrected) and listed in `docs/recovered/README.adoc`.
+verdict was corrected, `POST-RECOVERY CHANGE` where the interface changed) and
+listed in `docs/recovered/README.adoc`.
 
 == Applications in practice
 

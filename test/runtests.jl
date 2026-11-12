@@ -4,10 +4,9 @@
 #   1. Aqua package-shape gate — runs FIRST: a package that does not load
 #      cleanly, whose deps are not compat-closed, or whose exports are
 #      ambiguous is rejected before any behaviour test can pass.
-#   2. Behaviour — every test/cases/*.jl is included. The shipped case
-#      (smoke.jl) is a LOAD check only; replace/extend it as real
-#      behaviour tests land. Until then, `Pkg.test()` passing is necessary
-#      but NOT sufficient — record that in STATE.a2ml (smoke-only suite).
+#   2. Behaviour: every test/cases/*.jl is included, in name order.
+#      00-fixtures.jl defines the shared fixtures; each other file pins the
+#      decisions listed in docs/EXPLAINME.adoc ("Checking these claims").
 
 using Test
 using EpistemicTypes

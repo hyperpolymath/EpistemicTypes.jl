@@ -21,6 +21,20 @@ release recorded in `CITATION.cff`.
 * The Julia compatibility floor is 1.10 (was 1.9), and CI tests that floor.
 * The package UUID was re-minted as a UUIDv8 (estate ADR-008 amendment D320).
   The previous UUIDv5 is in the git history of `Project.toml`.
+* *Breaking:* `can_merge` no longer chooses a collapse rank. When the database
+  key or release differs, it refuses with `collapse_rank_required` until the
+  caller passes `collapse_to`, and refuses with `collapse_rank_not_in_both`
+  when either ladder lacks that rank. The old code collapsed to the coarsest
+  shared rank (`Domain` for PR2 against SILVA). Marked
+  `POST-RECOVERY FIX (5)`.
+* The wire form is now `echo:v2`: every value is percent-encoded, so a field
+  holding `&` or `=` round-trips. `parse_avec_fibre` still reads `echo:v1`, and
+  a receipt's `v` records the tag it was read from. Marked
+  `POST-RECOVERY CHANGE (6)`.
+* `bulk_verify!` is renamed `bulk_verify`, because it does not modify its
+  input. The old name is a deprecated alias.
+* Docstrings, tests and documents say "digest", not "signature": `sig` is an
+  unkeyed SHA-256 digest, so it detects accidental edits, not deliberate ones.
 
 ==== Added
 
@@ -43,6 +57,9 @@ release recorded in `CITATION.cff`.
 ==== Removed
 
 * `.github/workflows/rust-ci.yml`. The package has no Rust code.
+* *Breaking:* the `TPUBackend`, `NPUBackend` and `VPUBackend` stubs, which only
+  threw an error. Coprocessor contracts live in CoprocessorRuntime.jl.
+  Marked `POST-RECOVERY CHANGE (7)`.
 * The template's documentation and the unwired Idris2/Zig skeleton under
   `src/`. `src/` holds only the package.
 
