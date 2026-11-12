@@ -10,8 +10,18 @@ date-released: "2026-09-23"
 url: "https://github.com/hyperpolymath/EpistemicTypes.jl"
 repository-code: "https://github.com/hyperpolymath/EpistemicTypes.jl"
 license: MPL-2.0
+abstract: >-
+  Per-row claims with receipts for taxonomic tables. Each classifier call is
+  bound to its standpoint (tool, database, parameters), its warrant (the
+  classifier's scores and the sample gates) and its projection (taxon, rank,
+  feature, sample), and given an epistemic status, a residual summary and a
+  merge verdict for pooling two runs.
 keywords:
-  - "rsr"
-  - "formal-verification"
-  - "neurosymbolic"
+  - "julia"
   - "provenance"
+  - "taxonomy"
+  - "metabarcoding"
+  - "amplicon-sequencing"
+  - "microbiome"
+  - "dada2"
+  - "vsearch"

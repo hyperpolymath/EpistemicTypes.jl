@@ -47,7 +47,7 @@ using Pkg
 Pkg.add(url = "https://github.com/hyperpolymath/EpistemicTypes.jl")
 ----
 
-Julia 1.9 or later. The only non-standard-library dependency is JSON3.
+Julia 1.10 or later. The only non-standard-library dependency is JSON3.
 
 == Quick start
 
@@ -111,9 +111,19 @@ species clears the species threshold, and the caller's contamination checks
 passed. When those checks fail, the same evidence is reported as possible
 contamination.
 
-`disambiguate_zero` makes the same distinction for an empty cell: a zero is
-`Val(:true_absence)` only when the sample had the depth to detect the taxon,
-and `Val(:undetected)` otherwise.
+`disambiguate_zero` makes the same distinction for an empty cell. Give it the
+sample's total read count (its library size), because the feature's own count
+is 0 in an empty cell:
+
+[source,julia]
+----
+pol = ThresholdPolicy(sample_depth_min = 10_000)
+disambiguate_zero(52_310, pol)    # Val(:true_absence)
+disambiguate_zero(1_204, pol)     # Val(:undetected)
+----
+
+`sample_depth_min` has no default. Set it for your locus and study design;
+until you do, `disambiguate_zero` throws an `ArgumentError`.
 
 === Receipts in a table column
 
@@ -201,8 +211,8 @@ depend on this package; binding the two through a package extension is planned.
 The engineering decisions, what each one prevents, measured throughput and
 the current limits are in link:docs/EXPLAINME.adoc[docs/EXPLAINME.adoc].
 `src/core/Epistemic.jl` is restored from the original design session; the
-three places it differs from that source are marked in the code and listed in
-link:docs/recovered/README.md[docs/recovered/README.md].
+four places it differs from that source are marked in the code and listed in
+link:docs/recovered/README.adoc[docs/recovered/README.adoc].
 
 == Testing
 
@@ -211,10 +221,10 @@ link:docs/recovered/README.md[docs/recovered/README.md].
 julia --project=. -e 'using Pkg; Pkg.test()'
 ----
 
-`Aqua.test_all` (11 checks) runs first, then 89 behaviour tests: the digest
+`Aqua.test_all` (11 checks) runs first, then 93 behaviour tests: the digest
 under tampering of each leg, the wire-form round trip, the gate and rank
 thresholds for both tools, all four statuses, the residual and contamination
-logic, and each `can_merge` verdict. One further test is marked `@test_broken`
+logic, zero disambiguation, and each `can_merge` verdict. One further test is marked `@test_broken`
 for the wire-form limit described in the EXPLAINME.
 
 == Licence

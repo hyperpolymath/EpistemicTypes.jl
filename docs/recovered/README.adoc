@@ -27,7 +27,7 @@ conversation _titles only_, never message bodies, which is why searching for
 == How `src/` relates to it
 
 `src/core/Epistemic.jl` *is* `code-blocks/16-Epistemic.jl` (398 lines),
-identical apart from three marked changes. Two are `RECOVERY FIX`es at their
+identical apart from four marked changes. Two are `RECOVERY FIX`es at their
 site:
 
 [arabic]
@@ -44,8 +44,8 @@ worth knowing when reading it: the logic was reasoned out, not run. Both fixes
 are mechanical and neither touches a name, a threshold, the signature scheme or
 a docstring.
 
-One later change is marked `POST-RECOVERY FIX` at its site, because it
-corrects a verdict rather than making the code run:
+Two later changes are marked `POST-RECOVERY FIX` at their sites, because they
+correct a verdict rather than making the code run:
 
 [arabic, start=3]
 . *`can_merge` on a release mismatch with no shared rank* returned
@@ -54,6 +54,12 @@ naming no rank to merge at. It now returns `REFUSE` / `no_common_rank`, the
 answer the adjacent db-key branch already gave for the same situation.
 `test/cases/merge.jl` pins it; the original line is unchanged in
 `code-blocks/16-Epistemic.jl`.
+. *`disambiguate_zero` read the feature's own count.* It compared the
+warrant's per-feature `depth` with the per-feature `depth_min`, and a zero
+cell's per-feature count is 0, so it could never return `true_absence`. It now
+takes the sample's library size and a new `ThresholdPolicy.sample_depth_min`,
+which has no default. `test/cases/status.jl` pins it; the original method is
+unchanged in `code-blocks/16-Epistemic.jl`.
 
 The smaller `++*-Epistemic.jl++` blocks (67–120 lines) are *earlier iterations of
 the same module*, superseded by block 16. They are kept because they record
