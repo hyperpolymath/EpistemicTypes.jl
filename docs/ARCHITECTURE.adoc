@@ -19,7 +19,7 @@ link:architecture/REPOSITORY-MAP.adoc[REPOSITORY-MAP].
 
 | `src/core/Epistemic.jl`
 | The implementation, module `Epistemic`, restored from the design thread.
-  It is kept as recovered apart from four marked fixes, listed in the
+  It is kept as recovered apart from seven marked changes, listed in the
   package module's header. It declares no exports of its own.
 |===
 
@@ -33,7 +33,8 @@ the recovered namespace.
 A per-row claim is a *receipt*: a `Standpoint` (tool and version, database and release, parameter
 hash, normalisation), a `Warrant` (classifier and sample evidence) and a
 `ProjectionY` (the taxon, rank, feature and sample claimed), bound by a
-SHA-256 signature over a canonical JSON encoding.
+SHA-256 digest over a canonical JSON encoding. The digest has no key: it
+detects accidental edits, not deliberate ones.
 
 [cols="1,3",options="header"]
 |===
@@ -41,7 +42,8 @@ SHA-256 signature over a canonical JSON encoding.
 
 | Receipts
 | `make_receipt`, `verify_receipt`; the CSV-portable wire form
-  `encode_avec_fibre` / `parse_avec_fibre` (base64url of the canonical JSON).
+  `encode_avec_fibre` / `parse_avec_fibre` (`echo:v2`: percent-encoded JSON;
+  `echo:v1` is still read).
 
 | Policy and decision
 | `ThresholdPolicy`, `passes_gates`, `highest_warranted_rank`, `epi_status`,
@@ -53,12 +55,11 @@ SHA-256 signature over a canonical JSON encoding.
 
 | Cross-run safety
 | `can_merge`, `lowest_common_rank`: refuse merges across standpoints that do
-  not share a judgement surface.
+  not share a judgement surface, and collapse only to a rank the caller names.
 
 | Bulk verification
-| `ComputeBackend`, `bulk_verify!`. `CPUBackend` is implemented. The TPU, NPU
-  and VPU backends exist so that a request for one fails loudly instead of
-  falling back silently.
+| `ComputeBackend`, `bulk_verify`. `CPUBackend` is the only backend; coprocessor
+  contracts live in CoprocessorRuntime.jl.
 |===
 
 Derived status is never stored in a receipt. It is computed from the raw

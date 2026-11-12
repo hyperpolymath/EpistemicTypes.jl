@@ -4,8 +4,8 @@ module Epistemic
 # -----------------------------------------------------------------------------
 # PURPOSE
 #   Per-row "claims with receipts" (a.k.a. fibres):
-#   - Bind each visible taxon/rank to its origin witness (standpoint+warrant+projection) with a signature.
-#   - Verify/emit receipts (echo:v1?k=&w=&y=&sig=...) that travel in CSV.
+#   - Bind each visible taxon/rank to its origin witness (standpoint+warrant+projection) with a digest.
+#   - Verify/emit receipts (echo:v2?k=&w=&y=&sig=...) that travel in CSV.
 #   - Convert raw classifier scores + sample gates into a warranted claim at the right rank:
 #       epi_status ∈ { :Factive, :Belief, :Collapsed, :SansFibre }
 #   - Summarize residual evidence (named species candidates; "novel" only after contamination gates).
@@ -34,7 +34,7 @@ using Base: @kwdef
 """
   b64url(x::Vector{UInt8})::String
 
-Base64url without padding, suitable for compact signatures inside CSV.
+Base64url without padding, suitable for compact digests inside CSV.
 """
 # RECOVERY FIX: the pairs were wrapped in a tuple — `replace(s, (a,b,c))` —
 # but `replace(::AbstractString, ::Pair...)` takes them splatted, so this
@@ -88,11 +88,11 @@ Do not put derived status here; keep it raw. Derived fields (epi_status,
 warranted_rank, residual info) are computed at load/analysis time.
 """
 @kwdef struct Receipt
-  v::String            = "echo:v1"  # version tag
+  v::String            = "echo:v2"  # wire-format version tag
   k::Standpoint
   w::Warrant
   y::ProjectionY
-  sig::String          # "sha256:..." over canon(k,w,y)
+  sig::String          # "sha256:..." digest over canon(k,w,y); no key
 end
 
 # -- Receipt API -------------------------------------------------------------
@@ -100,7 +100,8 @@ end
 """
   make_receipt(k::Standpoint, w::Warrant, y::ProjectionY)::Receipt
 
-Constructs a receipt and computes its signature (sha256 over canon(k,w,y)).
+Constructs a receipt and computes its digest (sha256 over canon(k,w,y)). The
+digest has no key: it detects accidental edits, not deliberate ones.
 """
 function make_receipt(k::Standpoint, w::Warrant, y::ProjectionY)::Receipt
   payload = canon(k, w, y)
@@ -120,34 +121,69 @@ function verify_receipt(r::Receipt)::Bool
   return computed == r.sig
 end
 
+# POST-RECOVERY CHANGE (6): wire format echo:v2. The recovered echo:v1 form
+# joined raw JSON with '&' and '=', so a field holding '&' could not round-trip.
+# echo:v2 percent-encodes every value (RFC 3986 unreserved bytes pass through).
+# echo:v1 strings are still read exactly as before.
+_is_unreserved(b::UInt8) =
+  (UInt8('A') <= b <= UInt8('Z')) || (UInt8('a') <= b <= UInt8('z')) ||
+  (UInt8('0') <= b <= UInt8('9')) || b in (UInt8('-'), UInt8('.'), UInt8('_'), UInt8('~'))
+
+function _pct_encode(s::AbstractString)::String
+  io = IOBuffer()
+  for b in codeunits(s)
+    _is_unreserved(b) ? write(io, b) : print(io, '%', uppercase(string(b; base=16, pad=2)))
+  end
+  return String(take!(io))
+end
+
+function _pct_decode(s::AbstractString)::String
+  cu = codeunits(s)
+  io = IOBuffer()
+  i = 1
+  while i <= length(cu)
+    if cu[i] == UInt8('%')
+      i + 2 <= length(cu) || throw(ArgumentError("truncated percent escape in fibre"))
+      write(io, parse(UInt8, String(cu[i+1:i+2]); base=16))
+      i += 3
+    else
+      write(io, cu[i])
+      i += 1
+    end
+  end
+  return String(take!(io))
+end
+
 """
   encode_avec_fibre(r::Receipt)::String
 
-URI-like compact value for a CSV column:
-echo:v1?k=<json>&w=<json>&y=<json>&sig=<sha256_base64url>
-Note: values are percent-encoded when embedded into CSV.
+URI-like compact value for a CSV column, with every value percent-encoded:
+echo:v2?k=<json>&w=<json>&y=<json>&sig=<sha256_base64url>
 """
 function encode_avec_fibre(r::Receipt)::String
-  qk = JSON3.write(r.k)
-  qw = JSON3.write(r.w)
-  qy = JSON3.write(r.y)
-  return "echo:v1?k=$(qk)&w=$(qw)&y=$(qy)&sig=$(r.sig)"
+  qk = _pct_encode(JSON3.write(r.k))
+  qw = _pct_encode(JSON3.write(r.w))
+  qy = _pct_encode(JSON3.write(r.y))
+  return "echo:v2?k=$(qk)&w=$(qw)&y=$(qy)&sig=$(_pct_encode(r.sig))"
 end
 
 """
   parse_avec_fibre(str)::Receipt
 
-Parses a compact `avec_fibre` string back into a Receipt. Verifies version tag.
-Note: We do not verify the signature here; call `verify_receipt` explicitly.
+Parses a compact `avec_fibre` string (echo:v2, or the older echo:v1) back into
+a Receipt whose `v` records the tag it was read from.
+Note: We do not verify the digest here; call `verify_receipt` explicitly.
 """
 function parse_avec_fibre(str::AbstractString)::Receipt
-  startswith(str, "echo:v1?") || error("Bad fibre version or missing 'echo:v1' prefix")
-  qs = split(str[9:end], '&')  # after "echo:v1?"
+  tag = startswith(str, "echo:v2?") ? "echo:v2" :
+        startswith(str, "echo:v1?") ? "echo:v1" :
+        error("Bad fibre version or missing 'echo:v1'/'echo:v2' prefix")
+  qs = split(str[9:end], '&')  # after "echo:vN?"
   kv = Dict{String,String}()
   for p in qs
     i = findfirst(==('='), p); i === nothing && continue
     k = p[1:i-1]; v = p[i+1:end]
-    kv[k] = v
+    kv[k] = tag == "echo:v2" ? _pct_decode(v) : String(v)
   end
   haskey(kv, "k") || error("fibre missing k")
   haskey(kv, "w") || error("fibre missing w")
@@ -157,7 +193,7 @@ function parse_avec_fibre(str::AbstractString)::Receipt
   k = JSON3.read(kv["k"], Standpoint)
   w = JSON3.read(kv["w"], Warrant)
   y = JSON3.read(kv["y"], ProjectionY)
-  return Receipt(; k, w, y, sig=kv["sig"])
+  return Receipt(; v=tag, k, w, y, sig=kv["sig"])
 end
 
 # -- Policy and Gates --------------------------------------------------------
@@ -354,49 +390,52 @@ end
 # -- Merge Checker -----------------------------------------------------------
 
 """
-  can_merge(manA::Dict, manB::Dict)::NamedTuple
+  can_merge(manA::Dict, manB::Dict; collapse_to=nothing)::NamedTuple
 
 Decides if two runs are safe to analyze together.
 Returns one of:
   (status="OK",)
   (status="OK_COLLAPSE", collapse_to="Division", reason="db_release_mismatch")
   (status="REFUSE", reason="normalisation_mismatch", details="rarefy vs rss")
+  (status="REFUSE", reason="collapse_rank_required", details="db_key_mismatch")
+  (status="REFUSE", reason="collapse_rank_not_in_both", details="Supergroup")
 Assumes manifests contain:
   man["normalisation"]          :: String
   man["db"]["key"]              :: String
   man["db"]["release"]          :: String
   man["db"]["ranks"]            :: Vector{String} (ordered, finest-last)
+
+When the database key or release differs, the caller names the rank to
+collapse to with `collapse_to`. Rank names alone cannot show where two
+taxonomies still agree, so the rank is never inferred.
 """
-function can_merge(manA::Dict, manB::Dict; allow_relative_abundance_if_norm_equal::Bool=true)
+function can_merge(manA::Dict, manB::Dict; collapse_to::Union{Nothing,AbstractString}=nothing,
+                   allow_relative_abundance_if_norm_equal::Bool=true)
   # Normalisation mismatch blocks relative-abundance analysis
   if manA["normalisation"] != manB["normalisation"] && allow_relative_abundance_if_norm_equal
     return (status="REFUSE", reason="normalisation_mismatch", details="$(manA["normalisation"]) vs $(manB["normalisation"])")
   end
-  # DB-key mismatch: collapse to lowest common rank
-  if manA["db"]["key"] != manB["db"]["key"]
-    common = lowest_common_rank(manA["db"]["ranks"], manB["db"]["ranks"])
-    return common === nothing ? (status="REFUSE", reason="no_common_rank", details="") :
-                                (status="OK_COLLAPSE", collapse_to=common, reason="db_key_mismatch")
-  end
-  # Same DB key, different release: collapse
-  if manA["db"]["release"] != manB["db"]["release"]
-    common = lowest_common_rank(manA["db"]["ranks"], manB["db"]["ranks"])
-    # POST-RECOVERY FIX: the recovered code returned OK_COLLAPSE with
-    # collapse_to === nothing when the ladders share no rank — a "safe to merge"
-    # verdict naming no rank. It now refuses, exactly as the db-key branch above
-    # does. The original line is in docs/recovered/code-blocks/16-Epistemic.jl.
-    return common === nothing ? (status="REFUSE", reason="no_common_rank", details="") :
-                                (status="OK_COLLAPSE", collapse_to=common, reason="db_release_mismatch")
-  end
-  # Otherwise OK
-  return (status="OK",)
+  # POST-RECOVERY FIX (5): the recovered code collapsed a key or release
+  # mismatch to lowest_common_rank, which returns the COARSEST shared rank on
+  # finest-last ladders ("Domain" for PR2 against SILVA). The earlier fix (3)
+  # refused when the ladders share no rank. A shared rank name still does not
+  # show where two releases' taxonomies agree, so the caller now names the
+  # rank, and the verdict refuses until it does. The original lines are in
+  # docs/recovered/code-blocks/16-Epistemic.jl.
+  mismatch = manA["db"]["key"] != manB["db"]["key"] ? "db_key_mismatch" :
+             manA["db"]["release"] != manB["db"]["release"] ? "db_release_mismatch" : nothing
+  mismatch === nothing && return (status="OK",)
+  collapse_to === nothing && return (status="REFUSE", reason="collapse_rank_required", details=mismatch)
+  in_both = collapse_to in manA["db"]["ranks"] && collapse_to in manB["db"]["ranks"]
+  in_both || return (status="REFUSE", reason="collapse_rank_not_in_both", details=String(collapse_to))
+  return (status="OK_COLLAPSE", collapse_to=String(collapse_to), reason=mismatch)
 end
 
 """
   lowest_common_rank(a::Vector{String}, b::Vector{String})::Union{Nothing,String}
 
-Given two ordered rank ladders (coarse->fine or fine->coarse; we treat as a simple intersection),
-return the finest rank that exists in both (or nothing).
+Returns the first rank of `a` that `b` also carries, or `nothing`. On
+coarse-to-fine (finest-last) ladders this is the COARSEST shared rank.
 """
 function lowest_common_rank(a::Vector{String}, b::Vector{String})::Union{Nothing,String}
   s = Set(b)
@@ -409,53 +448,38 @@ end
 # -- Backend Abstraction (lightweight) --------------------------------------
 # Most of these functions are O(1) per row and trivially parallelizable on CPU.
 # Specialized accelerators (TPU/NPU/VPU) do not fit well: this is not dense
-# matmul or deep-learning inference. Still, we define a minimal interface to
-# support batch verification on CPU and document where GPU/accelerators *might*
-# be considered (e.g., GPU hashing), although not recommended.
+# matmul or deep-learning inference. CPUBackend is the only backend.
+#
+# POST-RECOVERY CHANGE (7): the recovered TPU/NPU/VPU stub backends, which
+# existed only to throw, are removed. Coprocessor contracts live in
+# CoprocessorRuntime.jl and backend selection in AcceleratorGate.jl.
 
 abstract type ComputeBackend end
 
 """
   CPUBackend
 
-Default backend. Uses multi-threading where helpful. This is the only
-backend implemented; others are stubs with explanatory errors.
+Default backend. Uses multi-threading where helpful.
 """
 struct CPUBackend <: ComputeBackend end
 
 """
-  bulk_verify!(backend::CPUBackend, receipts::Vector{Receipt})::Vector{Bool}
+  bulk_verify(backend::CPUBackend, receipts::Vector{Receipt})::Vector{Bool}
 
-Batch-verifies signatures. Uses Threads.@threads for large vectors.
+Batch-verifies digests. Uses Threads.@threads for large vectors. It does not
+modify `receipts`; the former name `bulk_verify!` is deprecated.
 """
-function bulk_verify!(::CPUBackend, receipts::Vector{Receipt})::Vector{Bool}
+function bulk_verify(::CPUBackend, receipts::Vector{Receipt})::Vector{Bool}
   n = length(receipts)
   out = Vector{Bool}(undef, n)
-  # simple threaded loop; in practice, signature verification is already fast
+  # simple threaded loop; in practice, digest verification is already fast
   Threads.@threads for i in 1:n
     out[i] = verify_receipt(receipts[i])
   end
   return out
 end
 
-# --- Notional stubs for TPU/NPU/VPU backends -------------------------------
-# These are deliberately unimplemented. Exposing them prevents future devs
-# from assuming "hardware magic" is appropriate here. If someone proposes a
-# GPU hashing kernel or other batched accelerator, add it as an *optional*
-# specialized backend with careful determinism notes.
-
-struct TPUBackend   <: ComputeBackend end
-struct NPUBackend   <: ComputeBackend end
-struct VPUBackend   <: ComputeBackend end
-
-bulk_verify!(::TPUBackend, receipts::Vector{Receipt}) =
-  error("TPU/NPU/VPU acceleration is not applicable: per-row hashes and O(1) checks are CPU-fast and not dense-matmul workloads.")
-
-bulk_verify!(::NPUBackend, receipts::Vector{Receipt}) =
-  error("TPU/NPU/VPU acceleration is not applicable: per-row hashes and O(1) checks are CPU-fast and not dense-matmul workloads.")
-
-bulk_verify!(::VPUBackend, receipts::Vector{Receipt}) =
-  error("TPU/NPU/VPU acceleration is not applicable: per-row hashes and O(1) checks are CPU-fast and not dense-matmul workloads.")
+Base.@deprecate bulk_verify!(backend::CPUBackend, receipts::Vector{Receipt}) bulk_verify(backend, receipts) false
 
 # -- End Module --------------------------------------------------------------
 

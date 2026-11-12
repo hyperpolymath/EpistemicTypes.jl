@@ -18,12 +18,12 @@
     )
     @test epi_status(collapsed, pol) == :Collapsed
 
-    # :SansFibre — the signature does not verify, so nothing else is asked.
+    # :SansFibre: the digest does not verify, so nothing else is asked.
     sans = Receipt(;
         k = factive.k,
         w = factive.w,
         y = factive.y,
-        sig = "sha256:not-the-signature",
+        sig = "sha256:not-the-digest",
     )
     @test epi_status(sans, pol) == :SansFibre
 end

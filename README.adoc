@@ -129,13 +129,13 @@ until you do, `disambiguate_zero` throws an `ArgumentError`.
 
 [source,julia]
 ----
-s = encode_avec_fibre(r)   # "echo:v1?k={...}&w={...}&y={...}&sig=sha256:..."
+s = encode_avec_fibre(r)   # "echo:v2?k=%7B...%7D&w=...&y=...&sig=sha256%3A..."
 verify_receipt(parse_avec_fibre(s))                # true
 ----
 
-A typical receipt is about 350 bytes. It contains commas and double quotes,
-so write it as a quoted CSV field. R's `write.csv`, pandas, and Protoctist's
-ECSV writer all do this by default.
+Every value is percent-encoded, so a field holding `&` or `=` round-trips, and
+the string has no commas or double quotes. Strings in the older `echo:v1` form
+are still read. A typical receipt is about 540 bytes (it was about 360 as `echo:v1`).
 
 === Can two runs be pooled?
 
@@ -143,15 +143,20 @@ ECSV writer all do this by default.
 ----
 can_merge(manifest_a, manifest_b)
 # (status = "OK",)
-# (status = "OK_COLLAPSE", collapse_to = "Domain", reason = "db_release_mismatch")
 # (status = "REFUSE", reason = "normalisation_mismatch", details = "rarefy vs rss")
-# (status = "REFUSE", reason = "no_common_rank", details = "")
+# (status = "REFUSE", reason = "collapse_rank_required", details = "db_release_mismatch")
+
+can_merge(manifest_a, manifest_b; collapse_to = "Division")
+# (status = "OK_COLLAPSE", collapse_to = "Division", reason = "db_release_mismatch")
+# (status = "REFUSE", reason = "collapse_rank_not_in_both", details = "Division")
 ----
 
 A manifest is a `Dict` with `"normalisation"` and
 `"db" => Dict("key", "release", "ranks")`. Differing normalisation refuses
-relative-abundance pooling. A different database or release collapses both
-runs to a rank both ladders carry, the coarsest one, and refuses when they share none.
+relative-abundance pooling. When the database or release differs, you name the
+rank to collapse to: rank names cannot show where two taxonomies still agree,
+so the package does not guess. It refuses until you name a rank, and it refuses
+a rank that either ladder lacks.
 
 == Where it sits in a pipeline
 
@@ -211,7 +216,7 @@ depend on this package; binding the two through a package extension is planned.
 The engineering decisions, what each one prevents, measured throughput and
 the current limits are in link:docs/EXPLAINME.adoc[docs/EXPLAINME.adoc].
 `src/core/Epistemic.jl` is restored from the original design session; the
-four places it differs from that source are marked in the code and listed in
+seven places it differs from that source are marked in the code and listed in
 link:docs/recovered/README.adoc[docs/recovered/README.adoc].
 
 == Testing
@@ -221,11 +226,10 @@ link:docs/recovered/README.adoc[docs/recovered/README.adoc].
 julia --project=. -e 'using Pkg; Pkg.test()'
 ----
 
-`Aqua.test_all` (11 checks) runs first, then 93 behaviour tests: the digest
-under tampering of each leg, the wire-form round trip, the gate and rank
-thresholds for both tools, all four statuses, the residual and contamination
-logic, zero disambiguation, and each `can_merge` verdict. One further test is marked `@test_broken`
-for the wire-form limit described in the EXPLAINME.
+`Aqua.test_all` (11 checks) runs first, then 110 behaviour tests: the digest
+under an edit to each leg, the wire-form round trip in both versions, the gate
+and rank thresholds for both tools, all four statuses, the residual and
+contamination logic, zero disambiguation, and each `can_merge` verdict.
 
 == Licence
 

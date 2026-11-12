@@ -48,9 +48,6 @@ milestones = [
 
 [critical-next-actions]
 actions = [
-  "Decide which package owns Standpoint, Warrant and ProjectionY (this one or Protoctist.jl)",
-  "Decide whether can_merge should collapse to the coarsest or the finest shared rank (docs/EXPLAINME.adoc, Current limits)",
-  "Percent-encode the avec_fibre wire form and bump its version tag",
 ]
 
 [maintenance-status]

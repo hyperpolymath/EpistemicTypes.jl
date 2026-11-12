@@ -27,7 +27,7 @@ conversation _titles only_, never message bodies, which is why searching for
 == How `src/` relates to it
 
 `src/core/Epistemic.jl` *is* `code-blocks/16-Epistemic.jl` (398 lines),
-identical apart from four marked changes. Two are `RECOVERY FIX`es at their
+identical apart from seven marked changes. Two are `RECOVERY FIX`es at their
 site:
 
 [arabic]
@@ -37,14 +37,14 @@ could not have loaded as written.
 `++replace(s, ('+'=>'-', '/'=>'_', '='=>""))++` — where
 `replace(::AbstractString, ::Pair...)` wants them splatted. It threw
 `MethodError` on every call, which is to say on every receipt, every
-signature and every status decision.
+digest and every status decision.
 
 Together these mean *the recovered code had never been executed*. That is
 worth knowing when reading it: the logic was reasoned out, not run. Both fixes
 are mechanical and neither touches a name, a threshold, the signature scheme or
 a docstring.
 
-Two later changes are marked `POST-RECOVERY FIX` at their sites, because they
+Three later changes are marked `POST-RECOVERY FIX` at their sites, because they
 correct a verdict rather than making the code run:
 
 [arabic, start=3]
@@ -60,6 +60,28 @@ cell's per-feature count is 0, so it could never return `true_absence`. It now
 takes the sample's library size and a new `ThresholdPolicy.sample_depth_min`,
 which has no default. `test/cases/status.jl` pins it; the original method is
 unchanged in `code-blocks/16-Epistemic.jl`.
+. *`can_merge` collapsed a key or release mismatch to the coarsest shared
+rank.* `lowest_common_rank` returns the first rank of its first ladder that the
+second carries, which on coarse-to-fine ladders is the coarsest (`Domain` for
+PR2 against SILVA), while its docstring promised the finest. Neither is right,
+because rank names cannot show where two taxonomies agree. The caller now names
+the rank with `collapse_to`, and the verdict refuses until it does.
+`test/cases/merge.jl` pins it.
+
+Two later changes are marked `POST-RECOVERY CHANGE`, because they change the
+interface rather than a verdict:
+
+[arabic, start=6]
+. *Wire format `echo:v2`.* `encode_avec_fibre` joined raw JSON with `&` and
+`=`, so a field holding `&` could not round-trip, although the docstring said
+values were percent-encoded. `echo:v2` percent-encodes every value; `echo:v1`
+strings are still read.
+. *The TPU, NPU and VPU stub backends are removed*, and `bulk_verify!` is
+renamed `bulk_verify` (the old name is a deprecated alias). Coprocessor
+contracts live in CoprocessorRuntime.jl.
+
+Docstrings now say "digest" where they said "signature", because `sig` has no
+key.
 
 The smaller `++*-Epistemic.jl++` blocks (67–120 lines) are *earlier iterations of
 the same module*, superseded by block 16. They are kept because they record
@@ -76,19 +98,8 @@ Blocks that belong to the sibling packages rather than to this one:
 `EpistemicTypes` and `Cladistics` together; this is the clearest statement of
 how the family is meant to fit, and is what fixed this package's name.
 
-== Known fragilities in the recovered code, left as written
+== Known fragilities in the recovered code
 
-These are real and are *deliberately not silently fixed* — they are pinned by
-tests instead, so the behaviour cannot drift without someone noticing:
-
-[arabic]
-. `encode_avec_fibre` joins raw JSON with `&` and `=`, and
-`parse_avec_fibre` splits on those characters. The docstring says values
-"are percent-encoded when embedded into CSV", but no encoding happens here.
-A taxon name containing `&` would break the round-trip.
-. `lowest_common_rank` is documented as returning "the finest rank that exists
-in both" but returns the first entry of its first argument found in the
-second — order-dependent, not a finest-rank search. With coarse-first
-ladders it returns the coarsest shared rank, which is the conservative
-answer a collapse wants, so the behaviour is defensible; the docstring is
-what is wrong.
+The two fragilities this section used to list are resolved: the unencoded wire
+form by change 6, and the `lowest_common_rank` docstring by fix 5 (its
+docstring now states what it returns).
