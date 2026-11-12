@@ -14,7 +14,7 @@
     :version "0.1.0"
     :last-updated "2026-09-23"
     :project "EpistemicTypes.jl"
-    :purpose "Canonical RSR (Rhodium Standard Repository) template — governance, CI/CD, machine-readable metadata, ABI/FFI seam and formal-verification scaffolding that hyperpolymath projects are instantiated from."
+    :purpose "Per-row claims with receipts: standpoint/warrant/projection fibres, epi_status, residual evidence and a safe cross-run merge check for taxonomic pipelines."
     (agent :name CLAUDE :role "proofs, compilers, repo-local implementation, CI/CD, formal verification, Rust/Idris2/Zig")
     (agent :name CHATGPT :role "prose, papers, publication review, standards docs, outreach drafts, letters")
     (agent :name GEMINI :role "estate audits, cross-repo sweeps, long-context triage, pattern detection")
@@ -25,6 +25,21 @@
     (work :agent GEMINI :task "estate audits, cross-repo sweeps, long-context triage, pattern detection")
     (work :agent VIBE :task "UI/frontend, PanLL panels,  components, theming, rapid prototyping")
     )
+  (ecosystem
+    :project "EpistemicTypes.jl"
+    :ecosystem "hyperpolymath"
+    :position-type "julia-library"
+    :purpose "Per-row claims with receipts for taxonomic tables: standpoint/warrant/projection fibres, epi_status, residual evidence and a safe cross-run merge check."
+    :not ("rsr-template-repo (the template this repository was minted from; its ECOSYSTEM, STATE and CHANGELOG were carried here by mistake)"
+          "a proof (the status split follows the Agda design epistemic-types; this Julia code is not extracted from it)"
+          "a classifier, aligner, denoiser or phylogenetics tool (DADA2, vsearch, MAFFT, IQ-TREE and EPA-ng do that work; this package records and checks what they concluded)"
+          "a signature scheme (the receipt `sig` is an unkeyed SHA-256 digest: it detects accidental edits, not deliberate ones)"
+          "ResidualEvidenceTypes.jl (its Case and candidate sets are a different object; ResidualInfo here is a per-row heuristic that shares only the word 'residual')")
+    :pipeline-position "library"
+    :chain "DADA2 / vsearch (classifier calls) → EpistemicTypes.jl (receipts, epi_status, merge verdict) → Protoctist.jl and downstream analysis"
+    :pipeline-notes "Depends only on JSON3 and the Julia standard library. Protoctist.jl does not depend on it yet. Related: epistemic-types (formal-specification): Agda (--safe --without-K) design that the status split follows: a factive modality with a reflection principle, a belief modality without one. Related: residual-evidence-types (formal-specification): Agda design that the residual summary follows, where identification quantifies over every admissible candidate. Related: Protoctist.jl (planned-consumer): Lineage tables, trees, jplace and iTOL I/O. EpistemicTypes.jl owns the Standpoint, Warrant and ProjectionY names; Protoctist renames its differently shaped copies LineageStandpoint, LineageWarrant and LineageProjection. Binding through a package extension is planned. Related: Cladistics.jl (sibling): General tree algebra and LCA. Related: EchoTypes.jl (sibling): Executable companion to the Agda library echo-types: the finite-domain shadow of its theorems. Related: ResidualEvidenceTypes.jl (sibling): Executable companion to residual-evidence-types. Related: nextgen-typing (coordination): Cross-project map and shared glossary; its map lists epistemic-types."
+    :coordination nextgen-typing
+    (related :name "rsr-template-repo" :relationship minted-from :notes "Template parent recorded in VARIANT.a2ml; supplies the CI, governance and machine-readable scaffolding."))
   (ply
     (directory :ply 1 :path ".github")
     (directory :id "machine-readable-pillar" :ply 1 :path ".machine_readable" :description "Registry for all machine-readable metadata, policies, and internal\nautomation scripts."
