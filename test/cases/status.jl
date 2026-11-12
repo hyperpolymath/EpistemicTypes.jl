@@ -28,12 +28,23 @@
     @test epi_status(sans, pol) == :SansFibre
 end
 
-@testset "status — zero disambiguation turns on power, not on reads" begin
-    pol = ThresholdPolicy()
-    @test disambiguate_zero(Warrant(depth = 500), pol) === Val(:true_absence)
-    @test disambiguate_zero(Warrant(depth = 100), pol) === Val(:true_absence)
-    @test disambiguate_zero(Warrant(depth = 99), pol) === Val(:undetected)
-    @test disambiguate_zero(Warrant(), pol) === Val(:undetected)
+@testset "status, zero disambiguation reads the sample's depth, not the feature's" begin
+    # A zero cell has no reads for the feature, so the only depth that can show
+    # the power to detect it is the sample's library size.
+    pol = ThresholdPolicy(sample_depth_min = 10_000)
+    @test disambiguate_zero(50_000, pol) === Val(:true_absence)
+    @test disambiguate_zero(10_000, pol) === Val(:true_absence)
+    @test disambiguate_zero(9_999, pol) === Val(:undetected)
+    @test disambiguate_zero(0, pol) === Val(:undetected)
+
+    # No library size is assumed: an unset threshold refuses instead of guessing.
+    @test ThresholdPolicy().sample_depth_min === nothing
+    @test_throws ArgumentError disambiguate_zero(50_000, ThresholdPolicy())
+    @test_throws ArgumentError disambiguate_zero(-1, pol)
+
+    # The recovered method compared the feature's own count, which is 0 in a
+    # zero cell, so it could never answer true_absence. It is gone.
+    @test !hasmethod(disambiguate_zero, Tuple{Warrant,ThresholdPolicy})
 end
 
 @testset "residuals — novel only after the contamination gate" begin

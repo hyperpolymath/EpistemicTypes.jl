@@ -4,7 +4,7 @@ module EpistemicTypes
 #
 # The implementation is `src/core/Epistemic.jl`, restored from the design
 # thread "Clades and Other Prompts" (2026-09-16). It matches the recovered
-# source (docs/recovered/code-blocks/16-Epistemic.jl) apart from three
+# source (docs/recovered/code-blocks/16-Epistemic.jl) apart from four
 # marked changes:
 #
 #   RECOVERY FIX (2) — changes the code could not run without:
@@ -12,12 +12,16 @@ module EpistemicTypes
 #     2. `b64url` passed its replacement pairs as a TUPLE rather than
 #        splatted, so `replace` threw MethodError on every receipt.
 #
-#   POST-RECOVERY FIX (1) — a wrong verdict, corrected and pinned by a test:
+#   POST-RECOVERY FIXES (2), for wrong verdicts, each pinned by a test:
 #     3. `can_merge` returned OK_COLLAPSE with `collapse_to === nothing` when
 #        two releases of one database share no rank; it now refuses, as the
 #        db-key branch always did.
+#     4. `disambiguate_zero` read the feature's own count, which is 0 in a
+#        zero cell, so it never returned true_absence. It now takes the
+#        sample's library size and the new `ThresholdPolicy.sample_depth_min`.
 #
-#   No threshold, name, signature scheme or docstring was otherwise touched.
+#   No threshold, name, signature scheme or docstring was otherwise touched,
+#   apart from the docstring and threshold that fix 4 adds.
 #   The inner module keeps its recovered name, `Epistemic`; this outer module
 #   carries the package name.
 

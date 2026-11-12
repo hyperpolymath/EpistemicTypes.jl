@@ -177,6 +177,10 @@ Example defaults follow the common practice for DADA2/vsearch (tune per DB/locus
   )
   depth_min::Int = 100            # minimal per-feature count for any positive claim
   neg_leak_max::Float64 = 0.005   # maximal allowed negative-control leakage (fraction)
+  # POST-RECOVERY FIX (4): the sample read total (library size) at which a
+  # zero cell counts as an absence. No default: the right value depends on
+  # the locus and the study, so disambiguate_zero refuses until it is set.
+  sample_depth_min::Union{Nothing,Int} = nothing
 end
 
 """
@@ -239,16 +243,25 @@ undetected     - inadequate power (e.g., low depth) to conclude absence
 const ZeroKind = Union{Val{:true_absence},Val{:undetected}}
 
 """
-  disambiguate_zero(w::Warrant, pol::ThresholdPolicy)::ZeroKind
+  disambiguate_zero(sample_depth::Integer, pol::ThresholdPolicy)::ZeroKind
 
-Maps a zero cell (no reads) to either true_absence or undetected based on gates.
+Maps a zero cell (no reads for this feature in this sample) to either
+true_absence or undetected. `sample_depth` is the sample's total read count
+(library size). It is not the feature's count, which is zero in a zero cell.
+Throws ArgumentError when `pol.sample_depth_min` is not set.
 """
-function disambiguate_zero(w::Warrant, pol::ThresholdPolicy)::ZeroKind
-  if w.depth !== nothing && w.depth ≥ pol.depth_min
-    return Val(:true_absence)
-  else
-    return Val(:undetected)
-  end
+# POST-RECOVERY FIX (4): the recovered method took a Warrant and compared
+# `w.depth` with `depth_min`. Both are per-feature (see Warrant and
+# ThresholdPolicy), and a zero cell's per-feature count is 0, so the method
+# could never return true_absence for a real zero cell. It now takes the
+# sample's library size and compares it with `sample_depth_min`. The original
+# method is unchanged in docs/recovered/code-blocks/16-Epistemic.jl.
+function disambiguate_zero(sample_depth::Integer, pol::ThresholdPolicy)::ZeroKind
+  sample_depth ≥ 0 || throw(ArgumentError("sample_depth must be non-negative, got $sample_depth"))
+  needed = pol.sample_depth_min
+  needed === nothing && throw(ArgumentError(
+    "ThresholdPolicy.sample_depth_min is not set; choose the library size at which a zero counts as an absence"))
+  return sample_depth ≥ needed ? Val(:true_absence) : Val(:undetected)
 end
 
 struct ResidualInfo

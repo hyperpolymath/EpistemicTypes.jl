@@ -19,7 +19,7 @@ link:architecture/REPOSITORY-MAP.adoc[REPOSITORY-MAP].
 
 | `src/core/Epistemic.jl`
 | The implementation, module `Epistemic`, restored from the design thread.
-  It is kept as recovered apart from three marked fixes, listed in the
+  It is kept as recovered apart from four marked fixes, listed in the
   package module's header. It declares no exports of its own.
 |===
 
