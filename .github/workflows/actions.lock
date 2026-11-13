@@ -31,13 +31,13 @@ workflows:
     '.github/workflows/estate-rules.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/governance.yml':
-        - 'metadatastician/standards@cf8f91219d80da55cf8cbbfcd587d00c2d8798ed'
+        - 'metadatastician/standards@8d1a2aab4211493cf42f147f2080f024605797dc'
     '.github/workflows/groove-check.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/guix-policy.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/hypatia-scan.yml':
-        - 'metadatastician/standards@cf8f91219d80da55cf8cbbfcd587d00c2d8798ed'
+        - 'metadatastician/standards@8d1a2aab4211493cf42f147f2080f024605797dc'
     '.github/workflows/julia-ci.yml':
         - 'actions/checkout@v7.0.1'
         - 'julia-actions/cache@v3'
@@ -51,7 +51,7 @@ workflows:
     '.github/workflows/main-estate-audit.yml':
         - 'hyperpolymath/cicd-suite@55556cf5ba71ba744695861503c13148d3915a5d'
     '.github/workflows/mirror.yml':
-        - 'metadatastician/standards@cf8f91219d80da55cf8cbbfcd587d00c2d8798ed'
+        - 'metadatastician/standards@8d1a2aab4211493cf42f147f2080f024605797dc'
     '.github/workflows/ossf-best-practices.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/pages.yml':
@@ -76,9 +76,9 @@ workflows:
     '.github/workflows/runtime-policy.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/scorecard.yml':
-        - 'metadatastician/standards@cf8f91219d80da55cf8cbbfcd587d00c2d8798ed'
+        - 'metadatastician/standards@8d1a2aab4211493cf42f147f2080f024605797dc'
     '.github/workflows/secret-scanner.yml':
-        - 'metadatastician/standards@cf8f91219d80da55cf8cbbfcd587d00c2d8798ed'
+        - 'metadatastician/standards@8d1a2aab4211493cf42f147f2080f024605797dc'
     '.github/workflows/security-policy.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/sonarqube.yml':
@@ -135,6 +135,11 @@ dependencies:
         commit: 'sha1-368f82528645a54fb793d4d04e342629a3f51346'
         owner_id: 44036562
         repo_id: 438112499
+    'actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333':
+        ref: 'v8.0.2'
+        commit: 'sha1-9000827ccba6bdab643e8b6fd33ac0654aef8333'
+        owner_id: 44036562
+        repo_id: 192626254
     'actions/download-artifact@v8.0.2':
         ref: 'v8.0.2'
         commit: 'sha1-9000827ccba6bdab643e8b6fd33ac0654aef8333'
@@ -172,9 +177,9 @@ dependencies:
         commit: 'sha1-25dd0e34f4fe68f24cc83900b1fe3fe149efef98'
         owner_id: 27347476
         repo_id: 371068214
-    'dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f':
+    'dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8':
         ref: 'v1'
-        commit: 'sha1-e2a55d2ffb04f378e9626c28d38b36d230d1e12f'
+        commit: 'sha1-683b588c487a69d01f6c6ddf40f036ff682cc2c8'
         owner_id: 1940490
         repo_id: 260749683
     'editorconfig-checker/action-editorconfig-checker@51f63319f592f97930c73d9c46184d20bd206393':
@@ -242,26 +247,27 @@ dependencies:
         commit: 'sha1-da908477b5db94c10ffce8cfea9f2b3b9d5db687'
         owner_id: 53965732
         repo_id: 202020219
-    'metadatastician/standards@cf8f91219d80da55cf8cbbfcd587d00c2d8798ed':
-        ref: 'cf8f91219d80da55cf8cbbfcd587d00c2d8798ed'
-        commit: 'sha1-cf8f91219d80da55cf8cbbfcd587d00c2d8798ed'
+    'metadatastician/standards@8d1a2aab4211493cf42f147f2080f024605797dc':
+        ref: '8d1a2aab4211493cf42f147f2080f024605797dc'
+        commit: 'sha1-8d1a2aab4211493cf42f147f2080f024605797dc'
         owner_id: 297579217
         repo_id: 1116521501
         uses:
             - 'actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9'
             - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+            - 'actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333'
             - 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9'
             - 'denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed'
-            - 'dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f'
+            - 'dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8'
             - 'editorconfig-checker/action-editorconfig-checker@51f63319f592f97930c73d9c46184d20bd206393'
             - 'erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124'
             - 'github/codeql-action@b96794f015dfd88f77b49b1c93e0fa7110f94c63'
-            - 'ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc'
+            - 'ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e'
             - 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6'
             - 'webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555'
-    'ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc':
-        ref: 'v2.4.4'
-        commit: 'sha1-2d1146689b8cda280b9bc96326124645441f03bc'
+    'ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e':
+        ref: 'v2.5.0'
+        commit: 'sha1-fa7117db83c52d787ae5a89f350999701505d78e'
         owner_id: 67707773
         repo_id: 421101922
     'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6':

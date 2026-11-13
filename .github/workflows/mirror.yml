@@ -13,7 +13,7 @@ permissions:
   contents: read
 jobs:
   mirror:
-    uses: metadatastician/standards/.github/workflows/mirror-reusable.yml@cf8f91219d80da55cf8cbbfcd587d00c2d8798ed
+    uses: metadatastician/standards/.github/workflows/mirror-reusable.yml@8d1a2aab4211493cf42f147f2080f024605797dc
     # Explicit secrets map — no `secrets: inherit` (Hypatia WH008, alert #131).
     # All seven are the callee's complete optional contract (standards
     # mirror-reusable.yml@da2c748); behaviour is unchanged, future secrets

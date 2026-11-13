@@ -27,4 +27,4 @@ permissions:
 
 jobs:
   hypatia:
-    uses: metadatastician/standards/.github/workflows/hypatia-scan-reusable.yml@cf8f91219d80da55cf8cbbfcd587d00c2d8798ed
+    uses: metadatastician/standards/.github/workflows/hypatia-scan-reusable.yml@8d1a2aab4211493cf42f147f2080f024605797dc
