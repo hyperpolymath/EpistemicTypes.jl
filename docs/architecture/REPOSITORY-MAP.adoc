@@ -145,6 +145,10 @@ predecessors did.
 | yes
 | human documentation
 
+| `ext/`
+| optional
+| Julia package extensions; Pkg loads ext/ from the package root and nowhere else, present only where a weak dependency is declared
+
 | `mise.toml`
 | yes
 | pinned toolchains
