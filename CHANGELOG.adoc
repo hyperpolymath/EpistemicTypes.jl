@@ -11,6 +11,11 @@ release recorded in `CITATION.cff`.
 
 === [Unreleased]
 
+==== Documentation
+
+* README cites ALDEx2 pull request #83 and ANCOMBC pull requests #343 and #344 by
+  number, without describing their content or merge state.
+
 ==== Added
 
 * Package extension `EpistemicTypesCoprocessorRuntimeExt`: `epi_status(::LaunchReceipt)`
