@@ -218,7 +218,7 @@ output this package records. They are cited here by number only. This package
 does not depend on them, and this README does not state what they change or
 whether they have merged; read each pull request for that.
 
-* ALDEx2 pull request #83
+* https://github.com/ggloor/ALDEx_bioc/pull/83[ALDEx2 pull request #83]
 * https://github.com/FrederickHuangLin/ANCOMBC/pull/343[ANCOMBC pull request #343]
 * https://github.com/FrederickHuangLin/ANCOMBC/pull/344[ANCOMBC pull request #344]
 
