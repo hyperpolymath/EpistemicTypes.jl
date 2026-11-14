@@ -37,9 +37,16 @@
           "ResidualEvidenceTypes.jl (its Case and candidate sets are a different object; ResidualInfo here is a per-row heuristic that shares only the word 'residual')")
     :pipeline-position "library"
     :chain "DADA2 / vsearch (classifier calls) → EpistemicTypes.jl (receipts, epi_status, merge verdict) → Protoctist.jl and downstream analysis"
-    :pipeline-notes "Depends only on JSON3 and the Julia standard library. Protoctist.jl does not depend on it yet. Related: epistemic-types (formal-specification): Agda (--safe --without-K) design that the status split follows: a factive modality with a reflection principle, a belief modality without one. Related: residual-evidence-types (formal-specification): Agda design that the residual summary follows, where identification quantifies over every admissible candidate. Related: Protoctist.jl (planned-consumer): Lineage tables, trees, jplace and iTOL I/O. EpistemicTypes.jl owns the Standpoint, Warrant and ProjectionY names; Protoctist renames its differently shaped copies LineageStandpoint, LineageWarrant and LineageProjection. Binding through a package extension is planned. Related: Cladistics.jl (sibling): General tree algebra and LCA. Related: EchoTypes.jl (sibling): Executable companion to the Agda library echo-types: the finite-domain shadow of its theorems. Related: ResidualEvidenceTypes.jl (sibling): Executable companion to residual-evidence-types. Related: nextgen-typing (coordination): Cross-project map and shared glossary; its map lists epistemic-types."
+    :pipeline-notes "Depends only on JSON3 and the Julia standard library. Protoctist.jl does not depend on it yet."
     :coordination nextgen-typing
-    (related :name "rsr-template-repo" :relationship minted-from :notes "Template parent recorded in VARIANT.a2ml; supplies the CI, governance and machine-readable scaffolding."))
+    (related :name "rsr-template-repo" :relationship minted-from :notes "Template parent recorded in VARIANT.a2ml; supplies the CI, governance and machine-readable scaffolding.")
+    (related :name "epistemic-types" :relationship formal-specification :notes "Agda (--safe --without-K) design that the status split follows: a factive modality with a reflection principle, a belief modality without one.")
+    (related :name "residual-evidence-types" :relationship formal-specification :notes "Agda design that the residual summary follows, where identification quantifies over every admissible candidate.")
+    (related :name "Protoctist.jl" :relationship planned-consumer :notes "Lineage tables, trees, jplace and iTOL I/O. EpistemicTypes.jl owns the Standpoint, Warrant and ProjectionY names; Protoctist renames its differently shaped copies LineageStandpoint, LineageWarrant and LineageProjection. Binding through a package extension is planned.")
+    (related :name "Cladistics.jl" :relationship sibling :notes "General tree algebra and LCA.")
+    (related :name "EchoTypes.jl" :relationship sibling :notes "Executable companion to the Agda library echo-types: the finite-domain shadow of its theorems.")
+    (related :name "ResidualEvidenceTypes.jl" :relationship sibling :notes "Executable companion to residual-evidence-types.")
+    (related :name "nextgen-typing" :relationship coordination :notes "Cross-project map and shared glossary; its map lists epistemic-types."))
   (ply
     (directory :ply 1 :path ".github")
     (directory :id "machine-readable-pillar" :ply 1 :path ".machine_readable" :description "Registry for all machine-readable metadata, policies, and internal\nautomation scripts."
