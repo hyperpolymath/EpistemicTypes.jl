@@ -211,6 +211,17 @@ code follows these designs; it is not extracted from the proofs.
 Protoctist 0.1 carries its own copies of the receipt shapes and does not yet
 depend on this package; binding the two through a package extension is planned.
 
+=== Upstream pull requests
+
+The same author opened three pull requests against statistical methods whose
+output this package records. They are cited here by number only. This package
+does not depend on them, and this README does not state what they change or
+whether they have merged; read each pull request for that.
+
+* ALDEx2 pull request #83
+* https://github.com/FrederickHuangLin/ANCOMBC/pull/343[ANCOMBC pull request #343]
+* https://github.com/FrederickHuangLin/ANCOMBC/pull/344[ANCOMBC pull request #344]
+
 == Design and limits
 
 The engineering decisions, what each one prevents, measured throughput and
