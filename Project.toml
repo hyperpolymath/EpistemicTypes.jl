@@ -18,9 +18,16 @@ Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 
+[weakdeps]
+CoprocessorRuntime = "30bdb74d-6d6a-8e6d-a17e-2d6824776af8"
+
+[extensions]
+EpistemicTypesCoprocessorRuntimeExt = "CoprocessorRuntime"
+
 [compat]
 Aqua = "0.8"
 Base64 = "1.10"
+CoprocessorRuntime = "0.1"
 Dates = "1.10"
 JSON3 = "1.14.3"
 SHA = "0.7"

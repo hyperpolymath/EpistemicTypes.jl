@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MPL-2.0
+# Test environment for the EpistemicTypesCoprocessorRuntimeExt package extension.
+# CoprocessorRuntime is not in the General registry, so it is fetched by URL from
+# a pinned commit through [sources], which needs Julia 1.11. test/runtests.jl runs
+# this environment in a subprocess and records a visible Broken test on older Julia.
+[deps]
+CoprocessorRuntime = "30bdb74d-6d6a-8e6d-a17e-2d6824776af8"
+EpistemicTypes = "01a13f3a-2f87-8257-bd38-063f1e9e71bf"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+CoprocessorRuntime = {url = "https://github.com/hyperpolymath/CoprocessorRuntime.jl", rev = "109b00cbae08ae324198e35a325b2c7e51da5898"}
+EpistemicTypes = {path = "../.."}
+
+[compat]
+julia = "1.11"
