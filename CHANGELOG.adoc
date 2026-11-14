@@ -11,6 +11,17 @@ release recorded in `CITATION.cff`.
 
 === [Unreleased]
 
+==== Added
+
+* Package extension `EpistemicTypesCoprocessorRuntimeExt`: `epi_status(::LaunchReceipt)`
+  reads a CoprocessorRuntime launch receipt as one of the four statuses. `Knowledge`
+  maps to `:Factive` only when CoprocessorRuntime's own `host_may_claim` holds, else
+  `:Belief`; `Belief` to `:Belief`; `WarrantOnly` to `:Collapsed`; `Unsound` to
+  `:SansFibre`. An unmapped warrant is an `ArgumentError`. It verifies nothing and
+  leaves `epi_status(::Receipt, ::ThresholdPolicy)` unchanged. CoprocessorRuntime is a
+  weak dependency (compat `0.1`); the extension is tested in `test/ext` against a
+  pinned commit, which needs Julia 1.11 (Broken on older Julia).
+
 ==== Changed
 
 * *Breaking:* `disambiguate_zero` now takes the sample's total read count
